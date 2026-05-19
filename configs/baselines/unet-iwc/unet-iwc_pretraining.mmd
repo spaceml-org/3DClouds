@@ -1,0 +1,42 @@
+flowchart TB
+  %% Pre-training flow for configs/baselines/unet-iwc
+  %% Focused diagram: data pipeline -> model -> training
+
+  A[Path: configs/baselines/unet-iwc/train.yaml<br/>Call: hydra configuration files<br/>Desc: Loads training options and composes datamodule and model settings.<br/>Notes: Entrypoint for pre-training runs.] --> B[Path: configs/baselines/unet-iwc/datamodule.yaml<br/>Call: dataloader configuration file<br/>Desc: Specifies CloudSatMultiDataModule and satellite lists.<br/>Notes: Defines per-satellite transforms and data sources.]
+
+  B --> C[Path: src/datamodules/cloudsat_multi_dataloader.py<br/>Call: CloudSatMultiDataModule.__init__<br/>Desc: Builds per-satellite datamodules and prepares loader mappings.<br/>Notes: Orchestrates dataset split and dataloader creation.]
+  C --> D[Path: src/datamodules/multi_dataloader.py<br/>Call: OneSatellitePerBatchDataLoader<br/>Desc: Wraps per-satellite dataloaders and yields one satellite per batch.<br/>Notes: Balances sampling across satellites.]
+
+  C --> T_TRANS[Path: src/transforms/cloudsat_geo_transforms.py<br/>Call: CloudsatGEOTransform<br/>Desc: Assembles satellite-specific transform pipelines.<br/>Notes: Selects channels, normalisation and target transforms.]
+  T_TRANS --> T1[Path: src/transforms/transforms.py<br/>Call: SelectWavelengthsTransform<br/>Desc: Select sensor bands relevant for training.<br/>Notes: Reduces channels to model inputs.]
+  T1 --> T2[Path: src/transforms/transforms.py<br/>Call: MinMaxNormaliseTransform<br/>Desc: Normalize radiances to stable numeric ranges.<br/>Notes: Typically rescales to -1 to 1.]
+  T2 --> T3[Path: src/transforms/transforms.py<br/>Call: NanDictTransform / StackDictTransform<br/>Desc: Handle NaNs and stack channels to tensors.<br/>Notes: Final tensors fed to the model.]
+
+  B --> MCFG[Path: configs/baselines/unet-iwc/model.yaml<br/>Call: model configuration file<br/>Desc: Points to BruningUNet target and loss hyperparameters.<br/>Notes: Used by Hydra to instantiate model for pre-training.]
+  MCFG --> M_INIT[Path: src/models/unet.py<br/>Call: BruningUNet.__init__<br/>Desc: Initializes model, loss, and logging hooks for pre-training.<br/>Notes: Chooses low-level network per mode.]
+
+  M_INIT --> TRAINER[Path: train.py<br/>Call: pl.Trainer construction<br/>Desc: Creates Trainer with devices, callbacks and loggers.<br/>Notes: Configured for pre-training run.] --> FIT[Path: train.py<br/>Call: trainer.fit invocation<br/>Desc: Starts the pre-training loop with model and datamodule.<br/>Notes: Runs epochs and validation as configured.]
+
+  FIT --> STEP[Path: src/models/unet.py<br/>Call: BruningUNet.training_step<br/>Desc: Per-batch forward, loss calculation and logging.<br/>Notes: Uses configured loss and metrics functions.]
+  STEP --> OPT[Path: src/models/unet.py<br/>Call: configure_optimizers<br/>Desc: Sets optimizer and scheduler for training.<br/>Notes: e.g. Adam + LR scheduler.]
+
+  FIT --> VEND[Path: src/models/unet.py<br/>Call: on_validation_epoch_end<br/>Desc: Prepare visualizations and artifacts after validation.<br/>Notes: Plots may be logged to Wandb.]
+  VEND --> V_PLOT[Path: src/validation_utils.py<br/>Call: plot_multi_profiles<br/>Desc: Generate diagnostic images and metric summaries.<br/>Notes: Helpful for monitoring pre-training progression.]
+
+  %% Styles (copied from main diagram for consistency)
+  style A fill:#B7A4FF,stroke:#111,stroke-width:1px,color:#000
+  style B fill:#9AD1A0,stroke:#111,stroke-width:1px,color:#000
+  style C fill:#9AD1A0,stroke:#111,stroke-width:1px,color:#000
+  style D fill:#F0F0F0,stroke:#111,stroke-width:1px,color:#000
+  style T_TRANS fill:#FFD166,stroke:#111,stroke-width:1px,color:#000
+  style MCFG fill:#B7A4FF,stroke:#111,stroke-width:1px,color:#000
+  style M_INIT fill:#B7A4FF,stroke:#111,stroke-width:1px,color:#000
+  style TRAINER fill:#E9E9E9,stroke:#111,stroke-width:1px,color:#000
+  style FIT fill:#E9E9E9,stroke:#111,stroke-width:1px,color:#000
+  style STEP fill:#FFE0B2,stroke:#111,stroke-width:1px,color:#000
+  style OPT fill:#BFD7FF,stroke:#111,stroke-width:1px,color:#000
+  style VEND fill:#BFD7FF,stroke:#111,stroke-width:1px,color:#000
+  style V_PLOT fill:#FFF2CC,stroke:#111,stroke-width:1px,color:#000
+
+
+

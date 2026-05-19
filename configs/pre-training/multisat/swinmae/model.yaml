@@ -1,0 +1,25 @@
+model:
+  _target_: src.models.swinmae.SwinMAE
+  img_size: 256
+  patch_size: 4
+  in_chans: 11
+  mask_ratio: 0.5
+  masking_window: 2
+  decoder_embed_dim: 768
+  norm_pix_loss: False
+  depths: [2, 2, 2, 2]
+  embed_dim: 96
+  num_heads: [3, 6, 12, 24]
+  attention_window: 8
+  mlp_ratio: 4.0
+  drop_path_rate: 0.0
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  learning_rate: 1.5e-4
+  log_image_samples: 8
+
+  encode_coords: False
+  encode_time: False
+  encode_sat_angle: False
+  encode_solar_angle: False
+

@@ -1,0 +1,19 @@
+defaults:
+  - datamodule
+  - model
+  - wandb
+
+# Example datamodule configuration
+datamodule:
+  _target_: src.datamodules.cloudsat_multi_dataloader.CloudSatMultiDataModule
+  data_dir_dict:
+    msg_cloudsat: /data/cloudsat-msg-paired/
+    goes_cloudsat: /data/cloudsat-goes-paired/
+    himawari_cloudsat: /data/cloudsat-himawari-paired/
+  transforms_dict: {}
+  batch_size: 8
+  num_workers: 8
+  pin_memory: false
+  prefetch_factor: 2
+  load_overpass_mask: true
+  cloudsat_variables: ['IWC']

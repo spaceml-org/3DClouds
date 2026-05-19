@@ -1,0 +1,21 @@
+defaults:
+   - datamodule
+   - model
+   - wandb
+
+# -------- Wandb logging --------
+experiment_name: unet-baseline-re-multisat # Define experiment name
+tags: unet multisat mse clear-sky-filter model-fixes # Define tags for wandb logging
+task: regression # regression/segmentation/pretraining: this determines which metrics are logged
+monitor_metric: val/loss # Monitor metric for early stopping and model checkpointing
+
+# -------- Training details  --------
+max_epochs: 100 # Define number of training epochs
+seed: 42 # Define experiment seed
+devices: 1 # Defines number of GPUs ised for training.
+
+# -------- Data details  --------
+limit_train_batches: 0.25 # Limits the amount of training data. Selection random and changing across epochs.
+limit_val_batches: 0.5 # Limits the amount of validation data. Selection random and changing across epochs.
+limit_test_batches: 1.0 # Limits the amount of test data.
+

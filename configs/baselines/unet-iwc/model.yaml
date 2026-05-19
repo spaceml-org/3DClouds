@@ -1,0 +1,18 @@
+model:
+  _target_: src.models.unet.BruningUNet
+
+  # Define model parameters
+  input_dim: [11, 256, 256]
+  dropout: 0
+  weight_decay: 0.00001
+  start_filters: 32
+  height_bins: 80 # the number of height levels
+  depth: 4
+  lr: 0.0005
+  mode: "ResU"
+  random_plots: True # if true takes plots a different random batch each epoch
+  num_val_batches: 1 # if random_plots==True, will sample plotting batch from set {0,...,num_val_batches}
+  variable: ['IWC']
+  loss:
+    _target_: src.models.losses.MSELoss
+

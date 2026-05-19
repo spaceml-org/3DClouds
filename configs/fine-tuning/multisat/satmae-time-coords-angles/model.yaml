@@ -1,0 +1,24 @@
+model:
+  _target_: src.models.satmae_finetuning.SATMAEFinetuning
+  # Load the pretrained model from a hydra run
+  backbone:
+    _target_: src.models.components.checkpoint.ModelFromHydraRun
+    hydra_run_path: /data/2025-esl-3dclouds-extremes-models/2025-swinmae/mae-clouds-vits4-6xr9vbac
+    # model_expression: backbone NOTE: This is no longer needed, since satmae_finetuning.py now expects the whole model
+    freeze: False # Set to True if you want to freeze the backbone
+    enable_loading_weights: True # Set to True if you want to load the weights from the checkpoint
+
+  # Define model parameters
+  # vit: vit_s_sar_4
+  num_height_levels: 80
+  learning_rate: 1.5e-4
+  log_image_samples: 8
+  variable: ['Radar_Reflectivity', 'IWC', 're']
+  decoder_type: conv2d
+
+  # Define whether to encode time and coordinates
+  encode_time: False # This is what decides if the temporal encoding happens
+  encode_coords: False # This is what decides if the coordinate encoding happens
+  encode_solar_angle: False # This is what decides if the solar angle encoding happens
+  encode_sat_angle: False # This is what decides if the satellite angle encoding happens
+

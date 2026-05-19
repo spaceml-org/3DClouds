@@ -1,0 +1,14 @@
+model:
+  _target_: src.models.satmae.MaskedAutoEncoder
+  mask_ratio: 0.75
+  vit_arch: vit_s_sar_4
+  log_image_samples: 8
+  num_channels: 11
+  augment: False
+  image_size: 256
+  learning_rate: 1.5e-4
+  encode_time: False # This is what decides if the temporal encoding happens
+  encode_coords: False # This is what decides if the coordinate encoding happens
+  encode_solar_angle: False # This is what decides if the solar angle encoding happens
+  encode_sat_angle: False # This is what decides if the satellite angle encoding happens
+

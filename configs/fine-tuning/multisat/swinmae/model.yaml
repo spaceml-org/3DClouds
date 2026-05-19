@@ -1,0 +1,27 @@
+model:
+  _target_: src.models.swinmae_finetuning.SwinMAEFinetuning
+  backbone:
+    _target_: src.models.components.checkpoint.ModelFromHydraRun
+    hydra_run_path: /data/2025-esl-3dclouds-extremes-models/2025-swinmae/swinmae-clouds-mw2-ps4-aw8-mr0.5-1qyt6eyk
+    freeze: False # Set to True if you want to freeze the backbone
+    enable_loading_weights: True # Set to True if you want to load the weights from the checkpoint
+
+  img_size: 256
+  in_chans: 11
+  in_size: 8 # TODO: Make more modular rather than hardcoding
+  variable: ["Radar_Reflectivity", "IWC", "re"]
+  learning_rate: 1.5e-4
+  log_image_samples: 8
+  num_height_levels: 80
+
+  encode_coords: False
+  encode_time: False
+  encode_sat_angle: False
+  encode_solar_angle: False
+
+  loss:
+    _target_: src.models.losses.HybridLoss
+    mse_coeff: 1.
+
+  decoder_type: "swinconv2d"
+

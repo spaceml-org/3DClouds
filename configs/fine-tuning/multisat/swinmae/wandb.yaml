@@ -1,0 +1,5 @@
+wandb:
+  project: swinmae-finetuning-decoder # Add wandb project name
+  entity: esl3d # Add wandb organization
+  mode: online # Decide if online logging
+

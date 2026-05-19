@@ -1,0 +1,80 @@
+name: esl3d-env
+channels:
+  - conda-forge
+  - nvidia
+  - pytorch
+dependencies:
+  - python<3.12
+  # core
+  # - numpy<2
+  - scipy
+  - scikit-image
+  - scikit-learn
+  - opencv
+  - pandas
+  - xarray
+  - satpy
+  - dask
+  - dask[dataframe]
+  # data formats
+  - netcdf4
+  - hdf4
+  - pyhdf
+  - hdf5
+  - h5py
+  - h5netcdf
+  - zarr
+  # eo downloads
+  - boto3
+  - goes2go
+  - s3fs
+  - earthaccess
+  - eumdac
+  - google-cloud-storage
+  - gcsfs
+  # geospatial
+  - geopandas
+  - rasterio
+  - rioxarray
+  # visualisation
+  - matplotlib
+  - seaborn
+  - geoviews
+  - hvplot
+  - datashader
+  # other
+  - progressbar2
+  - wandb
+  - loguru
+  - python-dotenv
+  - hydra-core
+  - timm
+  - albumentations
+  - tqdm
+  - gcsfs
+  - black==23.3.0
+  - typer
+  - einops
+  - pydantic<2 # Needed for lightning version
+  # pip
+  - pip
+  - pip:
+    - autoroot
+    - torch==2.0.1
+    - torchvision==0.15.2
+    - lightning==2.0.1
+    - pytorch_lightning==2.0.6
+    - torchmetrics==1.0.1
+    - torchmetrics[image]
+    - numpy==1.23.0
+    - ipykernel
+    - ipywidgets
+    - jupyterlab
+    - jupyter
+    - jupyter_bokeh
+    - monai
+    - torcheval
+    # - opencv-python-headless<4.3
+    # from github (need to remove src/esl3d for this to work)
+    # - "--editable=git+https://github.com/w-k-jones/CloudSatiPy.git@main#egg=cloudsatipy"
+    # - "--editable=git+https://github.com/jejjohnson/xrpatcher.git@main#egg=xrpatcher"

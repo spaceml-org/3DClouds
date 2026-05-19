@@ -1,0 +1,69 @@
+dataloader:
+  _target_: src.datamodules.multi_dataloader.MultiDataModule
+  # Path to the data
+  data_dir_dict:
+    msg: /mnt/disks/pretraining/2025-esl-3dclouds-extremes-datasets/pre-training/msg/l1b
+    himawari: /mnt/disks/pretraining/2025-esl-3dclouds-extremes-datasets/pre-training/himawari/l1b
+    goes: /mnt/disks/pretraining/2025-esl-3dclouds-extremes-datasets/pre-training/goes/mcmip
+  # splits_dict: NOTE: data splitting is now default handled in the datamodules
+  patch_size: [256, 256]  # NOTE: Cropping is now done in the datasets
+
+  # Transforms to apply to the data
+  transforms_dict:
+    msg:
+      _target_: src.transforms.geo_transforms.GeoSatTransform
+      # patch_size: [256, 256]  # NOTE: Cropping is now done in the datasets
+      target_wavelengths: [
+            640.0,
+            810.0,
+            1640.0,
+            3920.0,
+            6250.0,
+            7350.0,
+            8700.0,
+            9660.0,
+            10800.0,
+            12000.0,
+            13400.0,
+        ]
+    himawari:
+      _target_: src.transforms.geo_transforms.GeoSatTransform
+      # patch_size: [256, 256]  # NOTE: Cropping is now done in the datasets
+      target_wavelengths: [
+            640.0,
+            860.0,
+            1600.0,
+            3900.0,
+            6200.0,
+            7300.0,
+            8600.0,
+            9600.0,
+            10400.0,
+            12400.0,
+            13300.0,
+        ]
+    goes:
+      _target_: src.transforms.geo_transforms.GeoSatTransform
+      # patch_size: [256, 256]  # NOTE: Cropping is now done in the datasets
+      target_wavelengths: [
+            640.0,
+            870.0,
+            1610.0,
+            3890.0,
+            6170.0,
+            7340.0,
+            8440.0,
+            9610.0,
+            10330.0,
+            12270.0,
+            13270.0,
+        ]
+
+  # Whether to load satellite and viewing angles
+  load_solar: True
+  load_zenith: True
+
+  # Dataloader parameters
+  batch_size: 8
+  num_workers: 8
+

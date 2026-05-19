@@ -1,0 +1,40 @@
+flowchart TB
+  %% Fine-tuning flow for configs/fine-tuning/multisat/swinmae
+  %% Standardized node format: Path / Call / Desc / Notes
+
+  A[Path: configs/fine-tuning/multisat/swinmae/train.yaml<br/>Call: hydra composition for fine-tuning<br/>Desc: Loads fine-tuning hyperparameters and checkpoint path.<br/>Notes: Overrides defaults for finetune run.] --> B[Path: src/utils.py<br/>Call: load_ckpt_from_hydra_run<br/>Desc: Helper to locate pretrained checkpoint for warm-start.<br/>Notes: Supports best/last selection heuristics.]
+
+  B --> PRELOAD[Path: src/models/swinmae.py<br/>Call: load_pretrained_weights<br/>Desc: Load pretrained encoder weights into model before fine-tuning.<br/>Notes: Optionally resume optimizer state when resuming training.]
+
+  PRELOAD --> C[Path: configs/fine-tuning/multisat/swinmae/datamodule.yaml<br/>Call: dataloader configuration file<br/>Desc: Configures MultiDataModule with satellite sources and fine-tune transforms.<br/>Notes: May change batch size or augmentations for fine-tuning.]
+  C --> D[Path: src/datamodules/multi_dataloader.py<br/>Call: MultiDataModule / CloudSatMultiDataModule<br/>Desc: Creates per-satellite datamodules and dataloaders.<br/>Notes: Handles splits and sampling weights.]
+
+  D --> GEO_TRANS[Path: src/transforms/cloudsat_geo_transforms.py<br/>Call: CloudsatGEOTransform.__init__<br/>Desc: Builds transform pipeline for fine-tuning - normalization, cropping, stacking.<br/>Notes: Could differ from pretraining transforms.]
+
+  MCFG[Path: configs/fine-tuning/multisat/swinmae/model.yaml<br/>Call: model configuration file<br/>Desc: Points to src.models.swinmae.SwinMAE and fine-tune hyperparameters.<br/>Notes: Learning rate, freeze flags, decoder options.] --> M_INIT[Path: src/models/swinmae.py<br/>Call: SwinMAE.__init__<br/>Desc: Initialize SwinMAE and attach fine-tune wrappers if required.<br/>Notes: Prepare model for supervised fine-tuning.]
+
+  M_INIT --> TRAINER[Path: train.py<br/>Call: pl.Trainer construction<br/>Desc: Create Trainer configured for fine-tuning with callbacks and loggers.<br/>Notes: Use lower LR and checkpointing for finetune.] --> FIT[Path: train.py<br/>Call: trainer.fit invocation<br/>Desc: Run fine-tuning loop with warm-started model and datamodule.<br/>Notes: Validate and checkpoint as configured.]
+
+  FIT --> FT_STEP[Path: src/models/swinmae.py<br/>Call: training_step<br/>Desc: Handles one fine-tuning batch: forward, compute supervised loss, log metrics.
+  Notes: May unfreeze layers progressively.]
+  FT_STEP --> OPT[Path: src/models/swinmae.py<br/>Call: configure_optimizers<br/>Desc: Build optimizer and scheduler for fine-tuning - likely lower LR.
+  Notes: Adam/AdamW and scheduler config per experiment.]
+
+  FIT --> VEND[Path: src/models/swinmae.py<br/>Call: on_validation_epoch_end<br/>Desc: Prepare validation visualizations and metrics.<br/>Notes: Log artifacts to Wandb.]
+  VEND --> V_PLOT[Path: src/validation_utils.py<br/>Call: plot_multi_profiles<br/>Desc: Generate diagnostic figures and metric summaries for reporting.<br/>Notes: Useful for comparing pretrain vs finetune performance.]
+
+  %% Styles
+  style A fill:#6FA8DC,stroke:#111,stroke-width:1px,color:#000
+  style B fill:#FFF1C1,stroke:#111,stroke-width:1px,color:#000
+  style PRELOAD fill:#B7A4FF,stroke:#111,stroke-width:1px,color:#000
+  style C fill:#9AD1A0,stroke:#111,stroke-width:1px,color:#000
+  style D fill:#9AD1A0,stroke:#111,stroke-width:1px,color:#000
+  style MCFG fill:#B7A4FF,stroke:#111,stroke-width:1px,color:#000
+  style M_INIT fill:#B7A4FF,stroke:#111,stroke-width:1px,color:#000
+  style TRAINER fill:#E9E9E9,stroke:#111,stroke-width:1px,color:#000
+  style FIT fill:#E9E9E9,stroke:#111,stroke-width:1px,color:#000
+  style FT_STEP fill:#FFE0B2,stroke:#111,stroke-width:1px,color:#000
+  style OPT fill:#BFD7FF,stroke:#111,stroke-width:1px,color:#000
+  style VEND fill:#BFD7FF,stroke:#111,stroke-width:1px,color:#000
+  style V_PLOT fill:#FFF2CC,stroke:#111,stroke-width:1px,color:#000
+

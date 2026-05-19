@@ -1,0 +1,34 @@
+flowchart TB
+  %% Pre-training flow for configs/pre-training/multisat/swinmae
+  %% Node IDs and labels follow the standardized layout: Path / Call / Desc / Notes
+
+  A[Path: configs/pre-training/multisat/swinmae/train.yaml<br/>Call: hydra configuration file<br/>Desc: Composes datamodule and model settings for pre-training.<br/>Notes: Sets experiment name, limits and devices.] --> B[Path: configs/pre-training/multisat/swinmae/datamodule.yaml<br/>Call: dataloader configuration<br/>Desc: Configures MultiDataModule with satellite sources and transforms.<br/>Notes: Defines per-satellite target wavelengths and batch settings.]
+
+  B --> DM_INIT[Path: src/datamodules/multi_dataloader.py<br/>Call: MultiDataModule.__init__<br/>Desc: Constructs per-satellite datamodules and loader mappings.<br/>Notes: Orchestrates sampling and dataset splits.]
+  DM_INIT --> MULTI_DL[Path: src/datamodules/multi_dataloader.py<br/>Call: iterator logic / OneSatellitePerBatch wrapper<br/>Desc: Yields batches choosing one satellite per batch according to weights.<br/>Notes: Handles iterator restart and sampling weights.]
+
+  B --> GEO_TRANS[Path: src/transforms/cloudsat_geo_transforms.py<br/>Call: CloudsatGEOTransform.__init__<br/>Desc: Builds satellite-specific transform pipelines per config.<br/>Notes: Selects wavelengths, normalization and stacking.]
+  GEO_TRANS --> TRANSFORMS[Path: src/transforms/transforms.py<br/>Call: SelectWavelengthsTransform / MinMaxNormaliseTransform / NanDictTransform / StackDictTransform<br/>Desc: Transform building blocks used in pipelines.<br/>Notes: Prepare tensors fed to the model.]
+
+  A --> MODEL_CFG[Path: configs/pre-training/multisat/swinmae/model.yaml<br/>Call: model configuration file<br/>Desc: Points to target class `src.models.swinmae.SwinMAE` and hyperparameters.<br/>Notes: Masking ratio, window sizes, embed dims etc.]
+  MODEL_CFG --> SWIN_INIT[Path: src/models/swinmae.py<br/>Call: SwinMAE.__init__<br/>Desc: Instantiates SwinMAE encoder/decoder and loss plumbing.<br/>Notes: Pretraining-specific forward and masking logic.]
+
+  Trainer[Path: train.py<br/>Call: pl.Trainer construction<br/>Desc: Creates Trainer instance with callbacks and loggers.<br/>Notes: Provided by hydra instantiation in the entrypoint.] --> Fit[Path: train.py<br/>Call: trainer.fit invocation<br/>Desc: Starts pre-training loop using model and datamodule.<br/>Notes: Runs epochs, validation and checkpointing.]
+  Fit --> TRAIN_STEP[Path: src/models/swinmae.py<br/>Call: training_step<br/>Desc: Processes one batch: apply mask, forward, compute loss.<br/>Notes: Logs intermediate metrics and images.]
+
+  TRAIN_STEP --> METRICS[Path: src/validation_utils.py<br/>Call: log_metrics_wandb<br/>Desc: Compute and log metrics and visual artifacts to Wandb.<br/>Notes: Generates images and scalar metrics for monitoring.]
+
+  %% Styles: reuse color palette and black text for readability
+  style A fill:#F28B82,stroke:#111,stroke-width:1px,color:#000
+  style B fill:#F28B82,stroke:#111,stroke-width:1px,color:#000
+  style DM_INIT fill:#BDE0FE,stroke:#111,stroke-width:1px,color:#000
+  style MULTI_DL fill:#BDE0FE,stroke:#111,stroke-width:1px,color:#000
+  style GEO_TRANS fill:#FFD166,stroke:#111,stroke-width:1px,color:#000
+  style TRANSFORMS fill:#FFEBC8,stroke:#111,stroke-width:1px,color:#000
+  style MODEL_CFG fill:#F28B82,stroke:#111,stroke-width:1px,color:#000
+  style SWIN_INIT fill:#BDE0FE,stroke:#111,stroke-width:1px,color:#000
+  style Trainer fill:#E9E9E9,stroke:#111,stroke-width:1px,color:#000
+  style Fit fill:#E9E9E9,stroke:#111,stroke-width:1px,color:#000
+  style TRAIN_STEP fill:#FFE0B2,stroke:#111,stroke-width:1px,color:#000
+  style METRICS fill:#FFF7E6,stroke:#111,stroke-width:1px,color:#000
+
