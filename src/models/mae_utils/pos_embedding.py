@@ -18,10 +18,16 @@ from src.senseiv2.utils import encode_position_linear, encode_position_angle, to
 
 
 def get_1d_sincos_pos_embed_torch(embed_dim, pos):
-    """
-    embed_dim: output dimension for each position (torch.tensor)
-    pos: a list of positions to be encoded: size (M,)
-    out: (M, D)
+    """ Compute 1D sin-cos positional embeddings using PyTorch tensors.
+
+        Parameters
+        ----------
+        embed_dim : int. Output embedding dimension for each position; must be even.
+        pos : torch.Tensor. Positions to encode with shape (M,).
+
+        Returns
+        -------
+        torch.Tensor. Positional embeddings with shape (M, embed_dim).
     """
     assert embed_dim % 2 == 0
     omega = torch.arange(embed_dim // 2, dtype=torch.float32, device=pos.device)
@@ -42,10 +48,16 @@ def get_1d_sincos_pos_embed_torch(embed_dim, pos):
 
 
 def get_1d_sincos_pos_embed(embed_dim, pos):
-    """
-    embed_dim: output dimension for each position (np.array)
-    pos: a list of positions to be encoded: size (M,)
-    out: (M, D)
+    """ Compute 1D sin-cos positional embeddings using NumPy arrays.
+
+        Parameters
+        ----------
+        embed_dim : int. Output embedding dimension for each position; must be even.
+        pos : np.ndarray. Positions to encode with shape (M,).
+
+        Returns
+        -------
+        np.ndarray. Positional embeddings with shape (M, embed_dim).
     """
     assert embed_dim % 2 == 0
     omega = np.arange(embed_dim // 2, dtype=np.float32)
@@ -63,11 +75,17 @@ def get_1d_sincos_pos_embed(embed_dim, pos):
 
 
 def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False):
-    """
-    embed_dim: output dimension for each position (np.array)
-    grid_size: size of the grid to be encoded
-    cls_token: whether to include a class token
-    out: (H*W+1, D)
+    """ Compute 2D sin-cos positional embeddings for a square grid.
+
+        Parameters
+        ----------
+        embed_dim : int. Output embedding dimension; must be even.
+        grid_size : int. Number of patches per side of the square grid.
+        cls_token : bool. If True, prepends a zero embedding for the class token (optional).
+
+        Returns
+        -------
+        np.ndarray. Positional embeddings with shape (H*W, embed_dim), or (H*W+1, embed_dim) if cls_token.
     """
     grid_h = np.arange(grid_size, dtype=np.float32)
     grid_w = np.arange(grid_size, dtype=np.float32)
@@ -89,11 +107,18 @@ def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False):
     return pos_embed
 
 def get_3d_sincos_pos_embed(embed_dim, grid_size, grid_height, cls_token=False):
-    """
-    embed_dim: output dimension for each position (np.array)
-    grid_size: size of the grid to be encoded
-    cls_token: whether to include a class token
-    out: (H*W+1, D)
+    """ Compute 3D sin-cos positional embeddings for a volumetric grid.
+
+        Parameters
+        ----------
+        embed_dim : int. Output embedding dimension; must be divisible by 3.
+        grid_size : int. Number of patches per spatial side (height and width).
+        grid_height : int. Number of patches along the depth dimension.
+        cls_token : bool. If True, prepends a zero embedding for the class token (optional).
+
+        Returns
+        -------
+        np.ndarray. Positional embeddings with shape (H*W*D, embed_dim), or (H*W*D+1, embed_dim) if cls_token.
     """
     grid_h = np.arange(grid_size, dtype=np.float32)
     grid_w = np.arange(grid_size, dtype=np.float32)
@@ -117,8 +142,18 @@ def get_3d_sincos_pos_embed(embed_dim, grid_size, grid_height, cls_token=False):
     return pos_embed
 
 def get_fractional_time_embedding(timestamps, hidden_dim, num_tokens):
-    """
-    Encodes timestamps into 1D positional embeddings using fraction of year and fraction of day
+    """ Encode timestamps into 1D positional embeddings using fraction of year and fraction of day.
+
+        Parameters
+        ----------
+        timestamps : torch.Tensor. Timestamp tensor with shape (batch_size, num_imgs, time_comps);
+            time_comps[-2] is fraction_of_year and time_comps[-1] is fraction_of_day.
+        hidden_dim : int. Dimension of the output embeddings; must be even.
+        num_tokens : int. Number of patch tokens per image to broadcast the embedding across.
+
+        Returns
+        -------
+        torch.Tensor. Temporal positional embeddings with shape (batch_size, num_imgs * num_tokens, hidden_dim).
     """
     # Assumes timestamps are in format [year, month, day, hour, minute, second, fraction_of_year, fraction_of_day]
     batch_size, num_imgs, time_comps = timestamps.shape
@@ -152,8 +187,18 @@ def get_fractional_time_embedding(timestamps, hidden_dim, num_tokens):
 
 
 def get_coords_embedding(coords, hidden_dim, num_tokens):
-    """
-    Encodes coords into 1D positional embeddings.
+    """ Encode geographic coordinates into positional embeddings using spherical angles.
+
+        Parameters
+        ----------
+        coords : torch.Tensor. Coordinate tensor with shape (batch_size, num_imgs, 2, h, w);
+            channel 0 is latitude and channel 1 is longitude.
+        hidden_dim : int. Dimension of the output embeddings.
+        num_tokens : int. Number of patch tokens per image to broadcast the embedding across.
+
+        Returns
+        -------
+        torch.Tensor. Geographic positional embeddings with shape (batch_size, num_imgs * num_tokens, hidden_dim).
     """
     # Assumes coords are in format [lat, lon]
     batch_size, num_imgs, coords_comp, h, w = coords.shape
@@ -185,8 +230,18 @@ def get_coords_embedding(coords, hidden_dim, num_tokens):
 
 
 def get_angle_embedding(angle, hidden_dim, num_tokens):
-    """
-    Encodes angle into 1D positional embeddings.
+    """ Encode view angles into positional embeddings using spherical angles.
+
+        Parameters
+        ----------
+        angle : torch.Tensor. Angle tensor with shape (batch_size, num_imgs, 2, h, w);
+            channel 0 is zenith angle and channel 1 is azimuth angle.
+        hidden_dim : int. Dimension of the output embeddings.
+        num_tokens : int. Number of patch tokens per image to broadcast the embedding across.
+
+        Returns
+        -------
+        torch.Tensor. Angular positional embeddings with shape (batch_size, num_imgs * num_tokens, hidden_dim).
     """
     # Assumes angle is in format [zenith, azimuth]
     batch_size, num_imgs, angle_comp, h, w = angle.shape

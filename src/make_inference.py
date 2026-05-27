@@ -1,3 +1,37 @@
+""" Run inference with a trained model and save per-sample metrics to CSV.
+
+    Loads a fine-tuned checkpoint identified by its W&B run ID, runs forward
+    passes on the chosen data split (train / val / test), unnormalises the
+    predictions, computes a suite of metrics (MSE, RMSE, SSIM, PSNR, masked
+    variants, Dice/BCE, per-cloud-type breakdowns), and writes one CSV file
+    per predicted CloudSat variable to ``--inferences_dir``.
+
+    Command-line Arguments
+    ----------------------
+    --wandb_runid          : str. W&B run ID of the fine-tuned model to evaluate.
+    --wandb_project        : str. W&B project to log inference metrics to
+                             (default: ``"inference-2025"``).
+    --finetuned_dir        : str. Root directory that contains the Hydra output
+                             folder for the fine-tuned run.
+    --inferences_dir       : str. Directory where output CSV files are saved.
+    --data_path            : str or None. Optional override for the dataset root
+                             path defined in the Hydra config.
+    --pretrained_dir       : str or None. Optional override for the pre-trained
+                             backbone directory defined in the Hydra config.
+    --split                : str. Data split to run inference on — one of
+                             ``"train"``, ``"val"``, or ``"test"``
+                             (default: ``"test"``).
+    --num_workers          : int. Number of dataloader worker processes
+                             (default: ``4``).
+    --criterion_best_model : str. Checkpoint selection criterion passed to
+                             ``utils.load_ckpt_from_hydra_run``
+                             (default: ``"best"``).
+    --cyclone_prediction   : bool. When ``True``, rewires the dataloader config
+                             to use cyclone-specific dataset paths and drops
+                             MSG (outside cyclone field of view)
+                             (default: ``False``).
+"""
+
 from __future__ import annotations
 
 import argparse

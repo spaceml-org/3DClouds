@@ -1,0 +1,4 @@
+wandb:
+  project: unet-2025 # Add wandb project name
+  entity: esl3d # Add wandb organization
+  mode: online # Decide if online logging

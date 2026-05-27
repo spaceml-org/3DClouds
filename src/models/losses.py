@@ -14,18 +14,26 @@ from src.models.utils import get_profiles
 
 
 class MSELoss3D(nn.Module):
-    """
-    MSE Loss for 3D volumes
-
-    Args:
-        coeff (float): Scaling coefficient for SSIM loss.
-    """
+    """ MSE Loss for 3D volumes. """
 
     def __init__(self):
+        """ Initialize MSELoss3D. """
         super().__init__()
         self.mse = nn.MSELoss(reduction="mean")
 
     def forward(self, cs, cs_p, overpass_mask):
+        """ Compute MSE loss over finite values of a 3D volume.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth 3D volume.
+            cs_p : torch.Tensor. Predicted 3D volume.
+            overpass_mask : torch.Tensor. Overpass mask (unused).
+
+            Returns
+            -------
+            torch.Tensor. Mean MSE loss over finite values.
+        """
         masked = torch.stack(
             [torch.isfinite(cs[j, :]) for j in range(0, cs.shape[0])], axis=0
         )
@@ -43,20 +51,25 @@ class MSELoss3D(nn.Module):
 
 
 class MSELoss(nn.Module):
-    """
-    MSE loss for 2D profiles
-    """
+    """ MSE loss for 2D profiles. """
 
     def __init__(self):
+        """ Initialize MSELoss. """
         super().__init__()
         self.mse = nn.MSELoss(reduction="mean")
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, padded_length) (B, 90, 512) tensor
-            cs_p: (batch_size, height, width, length) (B, 90, 256, 256) tensor
-            overpass_mask: (batch_size, width, length) (B, 256, 256) tensor
+        """ Compute MSE loss over extracted 2D profiles.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, padded_length).
+            cs_p : torch.Tensor. Prediction of shape (B, H, W, L).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, W, L).
+
+            Returns
+            -------
+            torch.Tensor. Mean MSE loss over all profiles.
         """
         cs, cs_p = get_profiles(cs, cs_p, overpass_mask)
         mse_vals = []
@@ -69,12 +82,19 @@ class MSELoss(nn.Module):
 
 
 class CrossEntropyLoss(nn.Module):
-    """
-    Args:
-        coeff (float): Scaling coefficient for SSIM loss.
-    """
+    """ Cross-entropy loss with optional class weights, ignoring index -1. """
 
     def __init__(self, class_weights=None):
+        """ Initialize CrossEntropyLoss.
+
+            Parameters
+            ----------
+            class_weights : torch.Tensor or None. Per-class weights for the cross-entropy loss (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.class_weights = class_weights
         self.CE = nn.CrossEntropyLoss(
@@ -82,6 +102,18 @@ class CrossEntropyLoss(nn.Module):
         )
 
     def forward(self, cs, cs_p, overpass_mask):
+        """ Compute cross-entropy loss.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth class labels.
+            cs_p : torch.Tensor. Predicted class logits.
+            overpass_mask : torch.Tensor. Overpass mask (unused).
+
+            Returns
+            -------
+            torch.Tensor. Mean cross-entropy loss.
+        """
         # NOTE: this relies on encoding of missing data being encoded as -1
         # The corresponding cloudsat transforms and also input_cloudsat dataset
         # (after the 3d expansion) should add -1's to missing data
@@ -90,13 +122,7 @@ class CrossEntropyLoss(nn.Module):
 
 
 class DiceCrossEntropy(nn.Module):
-
-    """
-    SSIMLoss: Combines MSE and SSIM lossM.
-
-    Args:
-        coeff (float): Scaling coefficient for SSIM loss.
-    """
+    """ Combines Dice loss and Cross-Entropy loss for semantic segmentation. """
 
     def __init__(
         self,
@@ -105,6 +131,19 @@ class DiceCrossEntropy(nn.Module):
         lambda_dice=1.0,
         lambda_ce=1.0,
     ):
+        """ Initialize DiceCrossEntropy.
+
+            Parameters
+            ----------
+            class_weights_path : str or None. Path to JSON file with class proportions for weighting (optional).
+            clear_sky_prop : float. Desired proportion weight for the clear-sky class (optional).
+            lambda_dice : float. Scaling coefficient for the Dice loss term (optional).
+            lambda_ce : float. Scaling coefficient for the Cross-Entropy loss term (optional).
+
+            Returns
+            -------
+            None.
+        """
         # super(DiceCrossEntropy, self).__init__()
         super().__init__()
         self.class_weights_path = class_weights_path
@@ -148,6 +187,18 @@ class DiceCrossEntropy(nn.Module):
         )
 
     def forward(self, cs, cs_p, overpass_mask):
+        """ Compute combined Dice and Cross-Entropy loss.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth class labels.
+            cs_p : torch.Tensor. Predicted class logits of shape (B, C, H, W, L).
+            overpass_mask : torch.Tensor. Overpass mask (unused).
+
+            Returns
+            -------
+            torch.Tensor. Combined Dice and Cross-Entropy loss.
+        """
         # NOTE: this relies on encoding on missing data being encoded as -1
         # The corresponding cloudsat transforms and also input_cloudsat dataset
         # (after the 3d expansion) should add -1's to missing data
@@ -168,12 +219,21 @@ class DiceCrossEntropy(nn.Module):
 
 
 class DiceBCEFromContinuous(nn.Module):
-    """
-    Computes Dice and BCE loss from continuous-valued targets and predictions,
-    using a threshold to define cloud vs. clear regions.
-    """
+    """ Computes Dice and BCE loss from continuous-valued targets using a threshold. """
 
     def __init__(self, threshold=None, lambda_dice=1.0, lambda_bce=1.0):
+        """ Initialize DiceBCEFromContinuous.
+
+            Parameters
+            ----------
+            threshold : float or None. Value used to binarise targets; uses per-patch minimum if None (optional).
+            lambda_dice : float. Scaling coefficient for the Dice loss term (optional).
+            lambda_bce : float. Scaling coefficient for the BCE loss term (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.lambda_dice = lambda_dice
         self.lambda_bce = lambda_bce
@@ -181,10 +241,17 @@ class DiceBCEFromContinuous(nn.Module):
         self.threshold = threshold  # If None, will use min value in cs per patch
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        cs: ground truth, continuous (B, ...)
-        cs_p: prediction, continuous (B, ...)
-        overpass_mask: mask tensor
+        """ Compute combined Dice and BCE loss from continuous predictions.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth continuous values of shape (B, ...).
+            cs_p : torch.Tensor. Predicted continuous values of shape (B, ...).
+            overpass_mask : torch.Tensor. Overpass mask tensor.
+
+            Returns
+            -------
+            torch.Tensor. Combined Dice and BCE loss.
         """
         cs_list, cs_p_list = get_profiles(cs, cs_p, overpass_mask)
         dice_losses = []
@@ -228,23 +295,25 @@ class DiceBCEFromContinuous(nn.Module):
         return self.lambda_dice * mean_dice + self.lambda_bce * mean_bce
 
 class SSIMLoss(nn.Module):
-    """
-    SSIMLoss: SSIM loss.
-
-    Args:
-        coeff (float): Scaling coefficient for SSIM loss.
-    """
+    """ SSIM loss (1 - SSIM) for 2D profiles. """
 
     def __init__(self):
+        """ Initialize SSIMLoss. """
         super().__init__()
         self.ssi = StructuralSimilarityIndexMeasure(data_range=(-1, 1))
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, width, length) (4, 90, 128, 128) tensor
-            cs_p: (batch_size, n_channels, height, width) tensor
-            overpass_mask: (batch_size, height, width) tensor
+        """ Compute SSIM loss over extracted 2D profiles.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, W, L).
+            cs_p : torch.Tensor. Prediction of shape (B, C, H, W).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Mean SSIM loss (1 - SSIM) over all profiles.
         """
         cs, cs_p = get_profiles(cs, cs_p, overpass_mask)
         ssim_vals = []
@@ -262,25 +331,36 @@ class SSIMLoss(nn.Module):
 
 
 class mse_ssimLoss(nn.Module):
-    """
-        SSIMLoss: Combines MSE and SSIM loss.
-
-    Args:
-        coeff (float): Scaling coefficient for ssim loss.
-    """
+    """ Combines MSE loss and SSIM loss (MSE + coeff * SSIM). """
 
     def __init__(self, coeff=1):
+        """ Initialize mse_ssimLoss.
+
+            Parameters
+            ----------
+            coeff : float. Scaling coefficient for the SSIM loss term (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.coeff = coeff
         self.mse = MSELoss()
         self.ssim = SSIMLoss()
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, width, length) (4, 90, 128, 128) tensor
-            cs_p: (batch_size, n_channels, height, width) tensor
-            overpass_mask: (batch_size, height, width) tensor
+        """ Compute MSE + coeff * SSIM loss over 2D profiles.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, W, L).
+            cs_p : torch.Tensor. Prediction of shape (B, C, H, W).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Combined MSE and SSIM loss.
         """
 
         mse_loss = self.mse(cs, cs_p, overpass_mask)
@@ -289,25 +369,36 @@ class mse_ssimLoss(nn.Module):
 
 
 class ssim_mseLoss(nn.Module):
-    """
-        SSIMLoss: Combines MSE and SSIM loss.
-
-    Args:
-        coeff (float): Scaling coefficient for ssim loss.
-    """
+    """ Combines SSIM loss and MSE loss (coeff * MSE + SSIM). """
 
     def __init__(self, coeff=1):
+        """ Initialize ssim_mseLoss.
+
+            Parameters
+            ----------
+            coeff : float. Scaling coefficient for the MSE loss term (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.coeff = coeff
         self.mse = MSELoss()
         self.ssim = SSIMLoss()
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, width, length) (4, 90, 128, 128) tensor
-            cs_p: (batch_size, n_channels, height, width) tensor
-            overpass_mask: (batch_size, height, width) tensor
+        """ Compute coeff * MSE + SSIM loss over 2D profiles.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, W, L).
+            cs_p : torch.Tensor. Prediction of shape (B, C, H, W).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Combined SSIM and MSE loss.
         """
 
         mse_loss = self.mse(cs, cs_p, overpass_mask)
@@ -316,14 +407,20 @@ class ssim_mseLoss(nn.Module):
 
 
 class PerceptualLoss(nn.Module):
-    """
-    SSIMLoss: Combines MSE and Perceptual loss.
-
-    Args:
-        coeff (float): Scaling coefficient for LPIPS loss.
-    """
+    """ Combines MSE loss and LPIPS perceptual loss (MSE - coeff * LPIPS). """
 
     def __init__(self, coeff=1, net_type="alex"):
+        """ Initialize PerceptualLoss.
+
+            Parameters
+            ----------
+            coeff : float. Scaling coefficient for the LPIPS loss term (optional).
+            net_type : str. Network backbone for LPIPS, e.g. 'alex' or 'vgg' (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.coeff = coeff
         self.mse = MSELoss()
@@ -335,11 +432,17 @@ class PerceptualLoss(nn.Module):
             self.minSize = 32
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, width, length) (4, 90, 128, 128) tensor
-            cs_p: (batch_size, n_channels, height, width) tensor
-            overpass_mask: (batch_size, height, width) tensor
+        """ Compute MSE minus coeff * LPIPS perceptual loss.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, W, L).
+            cs_p : torch.Tensor. Prediction of shape (B, C, H, W).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Combined MSE and perceptual loss.
         """
 
         mse_loss = self.mse(cs, cs_p, overpass_mask)
@@ -385,23 +488,34 @@ class PerceptualLoss(nn.Module):
 
 
 class TotalVariationLoss(nn.Module):
-    """
-    Total Variation Loss: Encourages smoothness in the output.
-
-    Args:
-        coeff (float): Scaling coefficient for TV loss.
-    """
+    """ Total Variation loss that encourages spatial smoothness in the output. """
 
     def __init__(self, coeff=1):
+        """ Initialize TotalVariationLoss.
+
+            Parameters
+            ----------
+            coeff : float. Scaling coefficient for the TV loss term (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.coeff = coeff
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, width, length) tensor
-            cs_p: (batch_size, n_channels, height, width) tensor
-            overpass_mask: (batch_size, height, width) tensor
+        """ Compute total variation loss over extracted profiles.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth tensor.
+            cs_p : torch.Tensor. Prediction tensor of shape (B, C, H, W).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Scaled mean total variation loss.
         """
         # Extract profiles from the volume
         cs, cs_p = get_profiles(cs, cs_p, overpass_mask)
@@ -419,25 +533,36 @@ class TotalVariationLoss(nn.Module):
 
 
 class HuberL1Loss(nn.Module):
-    """
-    Huber Loss: Combines MSE and MAE for robust regression.
-
-    Args:
-        delta (float): Threshold for switching between MSE and MAE.
-        coeff (float): Scaling coefficient for Huber loss.
-    """
+    """ Huber loss combining MSE and MAE for robust regression over 2D profiles. """
 
     def __init__(self, delta=1.0, coeff=1.0):
+        """ Initialize HuberL1Loss.
+
+            Parameters
+            ----------
+            delta : float. Threshold for switching between MSE and MAE regimes (optional).
+            coeff : float. Scaling coefficient for the Huber loss (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.huber = HuberLoss(delta=delta)
         self.coeff = coeff
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, width, length) tensor
-            cs_p: (batch_size, n_channels, height, width) tensor
-            overpass_mask: (batch_size, height, width) tensor
+        """ Compute Huber loss over extracted 2D profiles.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth tensor.
+            cs_p : torch.Tensor. Prediction tensor of shape (B, C, H, W).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Scaled mean Huber loss.
         """
         # Extract profiles from the volume
         cs, cs_p = get_profiles(cs, cs_p, overpass_mask)
@@ -452,16 +577,23 @@ class HuberL1Loss(nn.Module):
 
 
 class MaskedSSIMLoss(nn.Module):
-    """
-    Masked SSIM Loss: Computes SSIM over valid pixels defined by a binary mask.
-
-    Args:
-        window_size (int): Size of the Gaussian kernel.
-        sigma (float): Standard deviation for the Gaussian kernel.
-        eps (float): Small value to avoid division by zero.
-    """
+    """ Masked SSIM loss computing SSIM only over valid pixels defined by a binary mask. """
 
     def __init__(self, window_size=11, sigma=1.5, eps=1e-6, coeff=1.0, mask=False):
+        """ Initialize MaskedSSIMLoss.
+
+            Parameters
+            ----------
+            window_size : int. Size of the Gaussian kernel (optional).
+            sigma : float. Standard deviation of the Gaussian kernel (optional).
+            eps : float. Small value to avoid division by zero (optional).
+            coeff : float. Scaling coefficient for the loss (optional).
+            mask : bool. Whether to apply a validity mask derived from fill values (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.window_size = window_size
         self.sigma = sigma
@@ -470,6 +602,18 @@ class MaskedSSIMLoss(nn.Module):
         self.mask = mask
 
     def forward(self, cs, cs_p, overpass_mask):
+        """ Compute masked SSIM loss over extracted profiles.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth tensor.
+            cs_p : torch.Tensor. Prediction tensor.
+            overpass_mask : torch.Tensor. Overpass mask used to extract profiles.
+
+            Returns
+            -------
+            torch.Tensor. Scaled SSIM loss (1 - mean SSIM) over valid pixels.
+        """
         # Extract profiles from the volume
         cs, cs_p = get_profiles(cs, cs_p, overpass_mask)
 
@@ -494,12 +638,15 @@ class MaskedSSIMLoss(nn.Module):
 def gaussian_kernel(window_size: int, sigma: float, channels: int):
     """ Create a 2D Gaussian kernel.
 
-    Args:
-        window_size (int): Size of the kernel (must be odd).
-        sigma (float): Standard deviation of the Gaussian.
-        channels (int): Number of channels in the input tensor.
-    Returns:
-        kernel_2d (torch.Tensor): 2D Gaussian kernel of shape (channels, 1, window_size, window_size).
+        Parameters
+        ----------
+        window_size : int. Size of the kernel (must be odd).
+        sigma : float. Standard deviation of the Gaussian.
+        channels : int. Number of input channels.
+
+        Returns
+        -------
+        torch.Tensor. 2D Gaussian kernel of shape (channels, 1, window_size, window_size).
     """
 
     # Ensure window_size is odd
@@ -514,10 +661,20 @@ def gaussian_kernel(window_size: int, sigma: float, channels: int):
     return kernel_2d
 
 def masked_ssim(pred, target, mask=None, window_size=11, sigma=1.5, eps=1e-6):
-    """
-    Compute SSIM over valid pixels defined by a binary mask.
-    pred, target: (B, C, H, W)
-    mask: (B, 1, H, W) binary mask (1 = valid, 0 = invalid)
+    """ Compute SSIM over valid pixels defined by a binary mask.
+
+        Parameters
+        ----------
+        pred : torch.Tensor. Predicted tensor of shape (B, C, H, W).
+        target : torch.Tensor. Target tensor of shape (B, C, H, W).
+        mask : torch.Tensor or None. Binary mask of shape (B, 1, H, W); 1 = valid, 0 = invalid (optional).
+        window_size : int. Size of the Gaussian kernel (optional).
+        sigma : float. Standard deviation of the Gaussian kernel (optional).
+        eps : float. Small value to avoid division by zero (optional).
+
+        Returns
+        -------
+        torch.Tensor. Mean SSIM over valid regions across the batch.
     """
     B, C, H, W = pred.shape
     device = pred.device
@@ -565,28 +722,36 @@ def masked_ssim(pred, target, mask=None, window_size=11, sigma=1.5, eps=1e-6):
 
 
 class PowerSpectrumLoss(nn.Module):
-    """
-    Power Spectrum Loss: Computes the power spectrum loss between two 3D tensors.
-    Optionally handles masking by filling masked regions with the mean of valid values.
-
-    Args:
-        coeff (float): Scaling coefficient for the power spectrum loss.
-        mask (bool): Whether to apply masking logic.
-    """
+    """ Power Spectrum loss comparing log-power spectra of target and prediction. """
 
     def __init__(self, coeff=1.0, mask=False):
+        """ Initialize PowerSpectrumLoss.
+
+            Parameters
+            ----------
+            coeff : float. Scaling coefficient for the power spectrum loss (optional).
+            mask : bool. Whether to zero out fill-value pixels before computing the spectrum (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.coeff = coeff
         self.mask = mask
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, width, length) tensor
-            cs_p: (batch_size, n_channels, height, width) tensor
-            overpass_mask: (batch_size, height, width) tensor
-        Output:
-            Power spectrum loss value.
+        """ Compute power spectrum loss between target and predicted profiles.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth tensor.
+            cs_p : torch.Tensor. Predicted tensor.
+            overpass_mask : torch.Tensor. Overpass mask used to extract profiles.
+
+            Returns
+            -------
+            torch.Tensor. Scaled mean power spectrum loss.
         """
         # Extract profiles from the volume
         cs, cs_p = get_profiles(cs, cs_p, overpass_mask)
@@ -615,21 +780,35 @@ class PowerSpectrumLoss(nn.Module):
         return self.coeff * torch.mean(torch.stack(ps_loss))
 
 class MaskedMSELoss(nn.Module):
-    """
-    Masked MSE loss for 2D profiles, only over valid (finite) values.
-    """
+    """ Masked MSE loss for 2D profiles, computed only over valid (finite) values. """
 
     def __init__(self, clouds=True):
+        """ Initialize MaskedMSELoss.
+
+            Parameters
+            ----------
+            clouds : bool. If True, computes loss on cloud pixels; if False, on clear-sky pixels (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.mse = nn.MSELoss(reduction="mean")
         self.clouds = clouds  # If True, assumes cs is cloudsat profile
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, padded_length) (B, 90, 512) tensor
-            cs_p: (batch_size, height, width, length) (B, 90, 256, 256) tensor
-            overpass_mask: (batch_size, width, length) (B, 256, 256) tensor
+        """ Compute masked MSE loss over valid pixels.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, padded_length).
+            cs_p : torch.Tensor. Prediction of shape (B, H, W, L).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, W, L).
+
+            Returns
+            -------
+            torch.Tensor. Mean MSE loss over valid pixels.
         """
         cs_list, cs_p_list = get_profiles(cs, cs_p, overpass_mask)
         mse_vals = []
@@ -651,10 +830,7 @@ class MaskedMSELoss(nn.Module):
 
 
 class HybridLoss(nn.Module):
-    """
-    Hybrid Loss: Combines Huber loss, SSIM loss, Masked SSIM, and TV loss.
-    Only computes each loss if its coefficient is > 0.
-    """
+    """ Hybrid loss combining MSE, Huber, SSIM, TV, power spectrum, Dice, and BCE terms. """
 
     def __init__(self, mse_coeff=1.0,
                  huber_delta=1.0, huber_coeff=0.,
@@ -663,6 +839,33 @@ class HybridLoss(nn.Module):
                  masked_ssim_window_size=11, masked_ssim_sigma=1.5, masked_ssim_eps=1e-6,
                  tv_coeff=0., ps_coeff=0.0, ps_mask=False, dice_coeff=0.0,
                  bce_coeff=0.0, masked_mse_clouds_coeff=0.0, masked_mse_clearsky_coeff=0.0):
+        """ Initialize HybridLoss.
+
+            Parameters
+            ----------
+            mse_coeff : float. Coefficient for the MSE loss term (optional).
+            huber_delta : float. Delta threshold for the Huber loss (optional).
+            huber_coeff : float. Coefficient for the Huber loss term (optional).
+            ssim_coeff : float. Coefficient for the unmasked SSIM loss term (optional).
+            masked_ssim_coeff : float. Coefficient for the masked SSIM loss term (optional).
+            ssim_window_size : int. Window size for the SSIM Gaussian kernel (optional).
+            ssim_sigma : float. Sigma for the SSIM Gaussian kernel (optional).
+            ssim_eps : float. Epsilon for numerical stability in SSIM (optional).
+            masked_ssim_window_size : int. Window size for the masked SSIM Gaussian kernel (optional).
+            masked_ssim_sigma : float. Sigma for the masked SSIM Gaussian kernel (optional).
+            masked_ssim_eps : float. Epsilon for masked SSIM numerical stability (optional).
+            tv_coeff : float. Coefficient for the total variation loss term (optional).
+            ps_coeff : float. Coefficient for the power spectrum loss term (optional).
+            ps_mask : bool. Whether to apply masking in the power spectrum loss (optional).
+            dice_coeff : float. Coefficient for the Dice loss term (optional).
+            bce_coeff : float. Coefficient for the BCE loss term (optional).
+            masked_mse_clouds_coeff : float. Coefficient for masked MSE on cloud pixels (optional).
+            masked_mse_clearsky_coeff : float. Coefficient for masked MSE on clear-sky pixels (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
 
         # Weights
@@ -705,6 +908,18 @@ class HybridLoss(nn.Module):
             self.masked_mse_clearsky = MaskedMSELoss(clouds=False)
 
     def forward(self, cs, cs_p, overpass_mask):
+        """ Compute the hybrid loss as a weighted sum of enabled loss terms.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth tensor.
+            cs_p : torch.Tensor. Predicted tensor.
+            overpass_mask : torch.Tensor. Overpass mask for profile extraction.
+
+            Returns
+            -------
+            torch.Tensor. Scalar hybrid loss value.
+        """
 
         # Hybrid loss term
         hybrid_loss = 0.0

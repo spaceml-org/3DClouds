@@ -42,15 +42,23 @@ def plot_profiles(
     """
     Function to plot the true and predicted cloudsat profiles and upload them to wandb.
 
-    Inputs:
-        x: batch of input images (modis or msg) [batch_size x n_channels x patch_size_x x patch_size_y]
-        cs: batch of true 3d cloudsat profiles [batch_size x height x patch_size_x x patch_size_y]
-        cs_p: batch of predicted 3d cloudsat profiles [batch_size x height x patch_size_x x patch_size_y]
-        overpass_mask: batch of overpass masks [batch_size x patch_size_x x patch_size_y] # TODO check size
-        current_epoch: the current epoch, used for labelling the plot when uploaded to wandb
-        log_image_samples: number of images to plot
-        experiment: wandb experiment
-        plot_channel: the input image channel that is supposed to be plotted
+    Parameters
+    ----------
+    x : np.ndarray. Batch of input images [batch_size x n_channels x patch_size_x x patch_size_y].
+    cs : np.ndarray. Batch of true 3D CloudSat profiles [batch_size x height x patch_size_x x patch_size_y].
+    cs_p : np.ndarray. Batch of predicted 3D CloudSat profiles [batch_size x height x patch_size_x x patch_size_y].
+    overpass_mask : np.ndarray. Batch of overpass masks [batch_size x patch_size_x x patch_size_y].
+    current_epoch : int. Current epoch, used for labelling the plot when uploaded to wandb.
+    log_image_samples : int. Number of images to plot.
+    experiment : wandb.Run. Wandb experiment object.
+    plot_channel : int. Input image channel to plot.
+    satellite : str or None. Satellite identifier (optional).
+    task : str. Task type (e.g. "regression", "segmentation").
+    batch_idx : str or int. Batch index for plot labelling.
+
+    Returns
+    -------
+    None.
     """
 
     # check that we are not trying to plot more samples than we have in a batch
@@ -149,17 +157,25 @@ def plot_multi_profiles(
     batch_idx="",
 ):
     """
-    Function to plot the true and predicted cloudsat profiles and upload them to wandb for multiple output variables
+    Function to plot the true and predicted cloudsat profiles and upload them to wandb for multiple output variables.
 
-    Inputs:
-        x: batch of input images (modis or msg) [batch_size x n_channels x patch_size_x x patch_size_y]
-        cs: batch of true 3d cloudsat profiles [batch_size x height x patch_size_x x patch_size_y]
-        cs_p: batch of predicted 3d cloudsat profiles [batch_size x vars x height x patch_size_x x patch_size_y]
-        overpass_mask: batch of overpass masks [batch_size x patch_size_x x patch_size_y] # TODO check size
-        current_epoch: the current epoch, used for labelling the plot when uploaded to wandb
-        log_image_samples: number of images to plot
-        experiment: wandb experiment
-        plot_channel: the input image channel that is supposed to be plotted
+    Parameters
+    ----------
+    x : np.ndarray. Batch of input images [batch_size x n_channels x patch_size_x x patch_size_y].
+    cs : dict of np.ndarray. Batch of true 3D CloudSat profiles per variable.
+    cs_p : np.ndarray. Batch of predicted profiles [batch_size x vars x height x patch_size_x x patch_size_y].
+    overpass_mask : np.ndarray. Batch of overpass masks [batch_size x patch_size_x x patch_size_y].
+    current_epoch : int. Current epoch, used for labelling the plot when uploaded to wandb.
+    log_image_samples : int. Number of images to plot.
+    experiment : wandb.Run. Wandb experiment object.
+    plot_channel : int. Input image channel to plot.
+    satellite : str or None. Satellite identifier (optional).
+    task : str. Task type (e.g. "regression", "segmentation").
+    batch_idx : str or int. Batch index for plot labelling.
+
+    Returns
+    -------
+    None.
     """
 
     # check that we are not trying to plot more samples than we have in a batch
@@ -269,17 +285,21 @@ def plot_3d_prediction(
     remove_edge_rows=30,
 ):
     """
-    Function to add a 3D plot of the true cloudsat profile and the predicted clouds to wandb.
+    Function to add a 3D plot of the true CloudSat profile and the predicted clouds to wandb.
 
-    Inputs:
-        x_i: image (modis or msg) input (n_channels x patch_size_x x patch_size_y)
-        cs_i: true 3d cloudsat profile (height x patch_size_x x patch_size_y)
-        cs_p_i: predicted 3d cloudsat profile (height x patch_size_x x patch_size_y)
-        current_epoch: the current epoch, used for labelling the plot when uploaded to wandb
-        experiment: wandb experiment
-        plot_channel: the input image channel that is supposed to be plotted
-        remove_edge_rows: number of rows to remove from the edge of the 3D plot
+    Parameters
+    ----------
+    x_i : np.ndarray. Image input (n_channels x patch_size_x x patch_size_y).
+    cs_i : np.ndarray. True 3D CloudSat profile (height x patch_size_x x patch_size_y).
+    cs_p_i : np.ndarray. Predicted 3D CloudSat profile (height x patch_size_x x patch_size_y).
+    current_epoch : int. Current epoch, used for labelling the plot when uploaded to wandb.
+    experiment : wandb.Run. Wandb experiment object.
+    plot_channel : int. Input image channel to plot.
+    remove_edge_rows : int. Number of rows to remove from the edge of the 3D plot.
 
+    Returns
+    -------
+    None.
     """
 
     fig = plt.figure(figsize=(15, 7))
@@ -369,19 +389,23 @@ def plot_profiles_from_2d(
     vmin=None,
 ):
     """
-    Function to plot the true and predicted cloudsat profiles and upload them to wandb.
+    Function to plot the true and predicted CloudSat profiles and upload them to wandb.
 
     Used in unconditioned diffusion experiments.
 
-    Inputs:
-        x: batch of input images (modis or msg) [batch_size x n_channels x patch_size_x x patch_size_y]
-        cs: batch of true 3d cloudsat profiles [batch_size x height x patch_size_x x patch_size_y]
-        cs_p: batch of predicted 3d cloudsat profiles [batch_size x height x patch_size_x x patch_size_y]
-        overpass_mask: batch of overpass masks [batch_size x patch_size_x x patch_size_y]
-        current_epoch: the current epoch, used for labelling the plot when uploaded to wandb
-        log_image_samples: number of images to plot
-        experiment: wandb experiment
-        plot_channel: the input image channel that is supposed to be plotted
+    Parameters
+    ----------
+    cs : np.ndarray. Batch of input CloudSat profiles [batch_size x height x patch_size_x x patch_size_y].
+    cs_t : np.ndarray. Batch of noisy CloudSat profiles [batch_size x height x patch_size_x x patch_size_y].
+    cs_p : np.ndarray. Batch of predicted CloudSat profiles [batch_size x height x patch_size_x x patch_size_y].
+    current_epoch : int. Current epoch, used for labelling the plot when uploaded to wandb.
+    log_image_samples : int. Number of images to plot.
+    experiment : wandb.Run. Wandb experiment object.
+    vmin : float or None. Minimum value for colormap scale (optional).
+
+    Returns
+    -------
+    None.
     """
 
     # check that we are not trying to plot more samples than we have in a batch
@@ -424,24 +448,28 @@ def plot_profiles_from_2d(
 
 
 def ssim_metric(x_pred, targets, overpass_mask):
+    """ Compute the SSIM metric between predictions and targets. """
     SSIM = SSIMMetric().to("cuda")
     ssi_cs = SSIM(cs=targets, cs_p=x_pred, overpass_mask=overpass_mask)
     return ssi_cs
 
 
 def psnr_metric(x_pred, targets, overpass_mask):
+    """ Compute the PSNR metric between predictions and targets. """
     PSNR = PSNRMetric().to("cuda")
     psnr_cs = PSNR(cs=targets, cs_p=x_pred, overpass_mask=overpass_mask)
     return psnr_cs
 
 
 def lpips_metric(x_pred, targets, overpass_mask):
+    """ Compute the LPIPS perceptual metric between predictions and targets. """
     LPIPS = PerceptualLossMetric().to("cuda")
     lpips_cs = LPIPS(cs=targets, cs_p=x_pred, overpass_mask=overpass_mask)
     return lpips_cs
 
 
 def power_spectrum_metric(x_pred, targets, overpass_mask):
+    """ Compute the unmasked power spectrum metric between predictions and targets. """
     PowerSpectrum = PowerSpectrumMetric(mask=False).to("cuda")
     power_spectrum_cs = PowerSpectrum(
         cs=targets, cs_p=x_pred, overpass_mask=overpass_mask
@@ -450,6 +478,7 @@ def power_spectrum_metric(x_pred, targets, overpass_mask):
 
 
 def masked_power_spectrum_metric(x_pred, targets, overpass_mask):
+    """ Compute the masked power spectrum metric between predictions and targets. """
     PowerSpectrum = PowerSpectrumMetric(mask=True).to("cuda")
     power_spectrum_cs = PowerSpectrum(
         cs=targets, cs_p=x_pred, overpass_mask=overpass_mask
@@ -458,24 +487,28 @@ def masked_power_spectrum_metric(x_pred, targets, overpass_mask):
 
 
 def dice_metric(x_pred, targets, overpass_mask):
+    """ Compute the Dice metric between predictions and targets. """
     DiceBCE = DiceBCEFromContinuousMetric(lambda_dice=1, lambda_bce=0).to("cuda")
     dice = DiceBCE(cs=targets, cs_p=x_pred, overpass_mask=overpass_mask)
     return dice
 
 
 def bce_metric(x_pred, targets, overpass_mask):
+    """ Compute the BCE metric between predictions and targets. """
     DiceBCE = DiceBCEFromContinuousMetric(lambda_dice=0, lambda_bce=1).to("cuda")
     bce = DiceBCE(cs=targets, cs_p=x_pred, overpass_mask=overpass_mask)
     return bce
 
 
 def mssim_metric(x_pred, targets, overpass_mask):
+    """ Compute the masked SSIM metric between predictions and targets. """
     MSSIM = MaskedSSIMMetric().to("cuda")
     mssim_cs = MSSIM(cs=targets, cs_p=x_pred, overpass_mask=overpass_mask)
     return mssim_cs
 
 
 def masked_mse_metric(x_pred, targets, overpass_mask, clouds=True):
+    """ Compute the masked MSE metric between predictions and targets. """
     MaskedMSE = MaskedMSEMetric(clouds=clouds).to("cuda")
     mse_cs = MaskedMSE(cs=targets, cs_p=x_pred, overpass_mask=overpass_mask)
     return mse_cs
@@ -489,12 +522,19 @@ def log_metrics_wandb(
     experiment,
 ):
     """
-    Function to log metrics to wandb.
-    cs: true cloudsat profile
-    cs_p: predicted cloudsat profile
-    overpass_mask: overpass mask
-    stage: train, val or test
-    experiment: wandb experiment
+    Log regression metrics to wandb.
+
+    Parameters
+    ----------
+    cs : torch.Tensor. True CloudSat profile.
+    cs_p : torch.Tensor. Predicted CloudSat profile.
+    overpass_mask : torch.Tensor. Overpass mask.
+    stage : str. One of "train", "val", or "test".
+    experiment : wandb.Run. Wandb experiment object.
+
+    Returns
+    -------
+    tuple. Tuple of (mse_cs, rmse_cs, ssi_cs, psnr_cs, mssim_cs, mps, dice, bce, cloud_mse, clear_mse).
     """
     mse = MSELoss().to("cuda")
     mse_cs = mse(cs, cs_p, overpass_mask)
@@ -562,12 +602,21 @@ def log_metrics_wandb_seg(
     cs, cs_p, overpass_mask, stage, experiment, num_classes=9, class_weights=None
 ):
     """
-    Function to log segmentation metrics to wandb.
-    cs: true cloudsat cloud types
-    cs_p: estimated cloudsat probabilities per class
-    overpass_mask: overpass mask
-    stage: train, val or test
-    experiment: wandb experiment
+    Log segmentation metrics to wandb.
+
+    Parameters
+    ----------
+    cs : torch.Tensor. True CloudSat cloud types.
+    cs_p : torch.Tensor. Estimated CloudSat probabilities per class.
+    overpass_mask : torch.Tensor. Overpass mask.
+    stage : str. One of "train", "val", or "test".
+    experiment : wandb.Run. Wandb experiment object.
+    num_classes : int. Number of segmentation classes (optional).
+    class_weights : torch.Tensor or None. Per-class weights (optional).
+
+    Returns
+    -------
+    tuple. Tuple of (ssi_cs, metric_acc, metric_f1, metric_dice_mean, metric_acc_byclass, metric_f1_byclass).
     """
     # Check for finite values in target
     mask = cs != -1
@@ -628,10 +677,18 @@ def log_metrics_wandb_seg(
 
 def calculate_metrics_per_cloudtype(cs, cs_p, cloud_type, overpass_mask):
     """
-    Function to calculate metrics per cloud type.
-    cs: true cloudsat profile
-    cs_p: predicted cloudsat profile
-    cloud_type: cloud type
+    Calculate metrics per cloud type.
+
+    Parameters
+    ----------
+    cs : torch.Tensor. True CloudSat profile.
+    cs_p : torch.Tensor. Predicted CloudSat profile.
+    cloud_type : torch.Tensor. Cloud type labels.
+    overpass_mask : torch.Tensor. Overpass mask.
+
+    Returns
+    -------
+    dict. Dictionary of metric values keyed by cloud type and metric name.
     """
     results = {}
 

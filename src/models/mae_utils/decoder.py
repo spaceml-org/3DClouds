@@ -10,28 +10,90 @@ from src.models.unet_utils.utils import ResidualConv
 from src.models.mae_utils import masked_autoencoder_satmae, utils
 
 class Permute(nn.Module):
+    """ Simple module that permutes tensor dimensions. """
+
     def __init__(self, *dims):
+        """ Initialize Permute.
+
+            Parameters
+            ----------
+            *dims : int. Dimension indices specifying the desired ordering.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.dims = dims
 
     def forward(self, x):
+        """ Permute the dimensions of the input tensor.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input tensor to permute.
+
+            Returns
+            -------
+            torch.Tensor. Tensor with dimensions reordered according to self.dims.
+        """
         return x.permute(*self.dims)
 
 
 class RemoveClassToken(nn.Module):
+    """ Module that removes the class token from the sequence. """
+
     def __init__(self):
+        """ Initialize RemoveClassToken.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
 
     def forward(self, x):
+        """ Remove the class token from the token sequence.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input tensor of shape (B, N+1, D) including class token.
+
+            Returns
+            -------
+            torch.Tensor. Tensor of shape (B, N, D) with class token removed.
+        """
         return x[:, 1:, :]
 
 
 class ReshapeToken(nn.Module):
+    """ Module that reshapes a token sequence into a spatial feature map. """
+
     def __init__(self, num_timesteps):
+        """ Initialize ReshapeToken.
+
+            Parameters
+            ----------
+            num_timesteps : int. Number of input timesteps used to compute spatial dimensions.
+
+            Returns
+            -------
+            None.
+        """
         self.num_timesteps = num_timesteps
         super().__init__()
 
     def forward(self, x):
+        """ Reshape token sequence into a spatial feature map.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input tensor of shape (B, hd, ps2*nt).
+
+            Returns
+            -------
+            torch.Tensor. Reshaped tensor of shape (B, hd*nt, ps, ps).
+        """
         bs, hd, ps2_nt = x.shape
         ps2 = ps2_nt // self.num_timesteps
         ps = int(math.sqrt(ps2))
@@ -47,7 +109,22 @@ class ReshapeToken(nn.Module):
 
 
 class VanillaDecoder_Conv2DSingleHead(nn.Module):
+    """ Decoder with transposed convolution upsampling and a single output head. """
+
     def __init__(self, end_filters, hidden_dim, filters_seq, num_timesteps):
+        """ Initialize VanillaDecoder_Conv2DSingleHead.
+
+            Parameters
+            ----------
+            end_filters : int. Number of output channels.
+            hidden_dim : int. Token hidden dimension.
+            filters_seq : list[int]. Channel sizes for the upsampling blocks.
+            num_timesteps : int. Number of input timesteps.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.end_filters = end_filters
         self.hidden_dim = hidden_dim
@@ -90,6 +167,20 @@ class VanillaDecoder_Conv2DSingleHead(nn.Module):
         )
 
     def forward(self, x, timestamps=None, coords=None, sat_angle=None, solar_angle=None):
+        """ Decode and upsample encoder tokens to the output image.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Encoded token sequence from the backbone.
+            timestamps : torch.Tensor. Optional temporal encodings.
+            coords : torch.Tensor. Optional coordinate encodings.
+            sat_angle : torch.Tensor. Optional satellite angle encodings.
+            solar_angle : torch.Tensor. Optional solar angle encodings.
+
+            Returns
+            -------
+            torch.Tensor. Decoded output tensor of shape (B, end_filters, H, W).
+        """
         x = self.decode(x)
         x = self.up1(x)
         # NOTE: This does nothing if filter_seq only contains one element (i.e. for vit4)
@@ -101,9 +192,25 @@ class VanillaDecoder_Conv2DSingleHead(nn.Module):
 
 
 class VanillaDecoder_Conv2DMultiHead(nn.Module):
+    """ Decoder with transposed convolution upsampling and multiple output heads. """
+
     def __init__(
         self, end_filters, hidden_dim, filters_seq, num_timesteps, num_properties=1
     ):
+        """ Initialize VanillaDecoder_Conv2DMultiHead.
+
+            Parameters
+            ----------
+            end_filters : int. Number of output channels per head.
+            hidden_dim : int. Token hidden dimension.
+            filters_seq : list[int]. Channel sizes for the upsampling blocks.
+            num_timesteps : int. Number of input timesteps.
+            num_properties : int. Number of output property heads (optional, default 1).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.end_filters = end_filters
         self.hidden_dim = hidden_dim
@@ -140,6 +247,12 @@ class VanillaDecoder_Conv2DMultiHead(nn.Module):
         self.out = self._output_layers()
 
     def _output_layers(self):
+        """ Build the output ModuleList with one head per property.
+
+            Returns
+            -------
+            nn.ModuleList. List of sequential output heads.
+        """
         out = nn.ModuleList(
             [
                 nn.Sequential(
@@ -165,6 +278,20 @@ class VanillaDecoder_Conv2DMultiHead(nn.Module):
         return out
 
     def forward(self, x, timestamps=None, coords=None, sat_angle=None, solar_angle=None):
+        """ Decode, upsample, and apply each output head.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Encoded token sequence from the backbone.
+            timestamps : torch.Tensor. Optional temporal encodings.
+            coords : torch.Tensor. Optional coordinate encodings.
+            sat_angle : torch.Tensor. Optional satellite angle encodings.
+            solar_angle : torch.Tensor. Optional solar angle encodings.
+
+            Returns
+            -------
+            torch.Tensor. Output tensor of shape (B, num_properties, end_filters, H, W).
+        """
         x = self.decode(x)
         x = self.up1(x)
         # NOTE: This does nothing if filter_seq only contains one element (i.e. for vit4)
@@ -178,6 +305,8 @@ class VanillaDecoder_Conv2DMultiHead(nn.Module):
 
 
 class ConvDecoder_Conv2DMultiHead(nn.Module):
+    """ Decoder with adaptive conv upsampling (residual blocks) and multiple output heads. """
+
     def __init__(
         self,
         end_filters,
@@ -188,6 +317,22 @@ class ConvDecoder_Conv2DMultiHead(nn.Module):
         target_size=256,
         patch_size=4,
     ):
+        """ Initialize ConvDecoder_Conv2DMultiHead.
+
+            Parameters
+            ----------
+            end_filters : int. Number of output channels per head.
+            hidden_dim : int. Token hidden dimension.
+            num_timesteps : int. Number of input timesteps.
+            num_properties : int. Number of output property heads (optional, default 1).
+            image_size : int. Input image spatial size (optional, default 256).
+            target_size : int. Target output spatial size (optional, default 256).
+            patch_size : int. Patch size used for tokenization (optional, default 4).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.end_filters = end_filters
         self.hidden_dim = hidden_dim
@@ -207,6 +352,12 @@ class ConvDecoder_Conv2DMultiHead(nn.Module):
         self.out = self._output_layers()
 
     def _conv_up_layers(self):
+        """ Build conv transpose and residual upsampling layers.
+
+            Returns
+            -------
+            nn.Sequential. Sequential upsampling block.
+        """
         size = self.image_size // self.patch_size  # Initial size after reshaping
         in_dim = self.hidden_dim * self.num_timesteps
         self.out_dim = (self.hidden_dim * self.num_timesteps) // 2
@@ -242,6 +393,12 @@ class ConvDecoder_Conv2DMultiHead(nn.Module):
         return conv_up
 
     def _output_layers(self):
+        """ Build the output ModuleList with one head per property.
+
+            Returns
+            -------
+            nn.ModuleList. List of sequential output heads.
+        """
         out = nn.ModuleList(
             [
                 nn.Sequential(
@@ -267,6 +424,20 @@ class ConvDecoder_Conv2DMultiHead(nn.Module):
         return out
 
     def forward(self, x, timestamps=None, coords=None, sat_angle=None, solar_angle=None):
+        """ Decode, upsample, and apply each output head.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Encoded token sequence from the backbone.
+            timestamps : torch.Tensor. Optional temporal encodings.
+            coords : torch.Tensor. Optional coordinate encodings.
+            sat_angle : torch.Tensor. Optional satellite angle encodings.
+            solar_angle : torch.Tensor. Optional solar angle encodings.
+
+            Returns
+            -------
+            torch.Tensor. Output tensor of shape (B, num_properties, end_filters, H, W).
+        """
         x = self.decode(x)
         x = self.conv_up(x)  # Shape [B, 384, 128, 128] --> [B, 384, 256,256]
         # Apply each property head to the output
@@ -275,6 +446,8 @@ class ConvDecoder_Conv2DMultiHead(nn.Module):
         return x
 
 class ViTDecoder_Conv2DMultiHead(nn.Module):
+    """ Decoder using a ViT transformer decoder followed by un-patchification and conv output heads. """
+
     # Potential TODOs:
     # Test parameters for decoder_dim?
     # Test transition to end_filters?
@@ -287,6 +460,20 @@ class ViTDecoder_Conv2DMultiHead(nn.Module):
         backbone=None,
         decoder_dim=576,
     ):
+        """ Initialize ViTDecoder_Conv2DMultiHead.
+
+            Parameters
+            ----------
+            end_filters : int. Number of output channels per head.
+            num_timesteps : int. Number of input timesteps.
+            num_properties : int. Number of output property heads (optional, default 1).
+            backbone : MaskedAutoEncoderBackbone. Backbone model (optional, default None).
+            decoder_dim : int. Hidden dimension of the ViT decoder (optional, default 576).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.end_filters = end_filters
         self.num_timesteps = num_timesteps
@@ -321,6 +508,12 @@ class ViTDecoder_Conv2DMultiHead(nn.Module):
 
 
     def _output_layers(self):
+        """ Build the output ModuleList with one head per property.
+
+            Returns
+            -------
+            nn.ModuleList. List of sequential output heads.
+        """
         out = nn.ModuleList(
             [
                 nn.Sequential(
@@ -346,6 +539,28 @@ class ViTDecoder_Conv2DMultiHead(nn.Module):
         return out
 
     def forward(self, x, timestamps=None, coords=None, sat_angle=None, solar_angle=None):
+        """Run a full decoder forward pass with patch-based reconstruction.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Encoded token sequence of shape
+            ``(B, sequence_length, hidden_dim)``.
+        timestamps : torch.Tensor or None, optional
+            Temporal metadata forwarded to the decoder (default None).
+        coords : torch.Tensor or None, optional
+            Coordinate metadata forwarded to the decoder (default None).
+        sat_angle : torch.Tensor or None, optional
+            Satellite-angle metadata forwarded to the decoder (default None).
+        solar_angle : torch.Tensor or None, optional
+            Solar-angle metadata forwarded to the decoder (default None).
+
+        Returns
+        -------
+        torch.Tensor
+            Reconstructed property maps of shape
+            ``(B, num_properties, end_filters, target_size, target_size)``.
+        """
         # build decoder input
         x = self.decoder.embed(x) # Shape [B, squence_length, hidden_dim]
         # decoder forward pass
@@ -368,6 +583,37 @@ class ViTDecoder_Conv2DMultiHead(nn.Module):
         return x
 
 class ViTConvDecoder_Conv2DMultiHead(nn.Module):
+    """A decoder combining ViT-based decoding with convolutional upsampling.
+
+    Processes multi-temporal satellite image sequences using a Transformer
+    decoder followed by transposed-convolution upsampling, producing
+    per-property 2-D output maps.
+
+    Parameters
+    ----------
+    end_filters : int
+        Number of output channels (one per output map).
+    num_timesteps : int
+        Number of temporal frames in each input sequence.
+    num_properties : int, optional
+        Number of geophysical properties to predict (default 1).
+    backbone : nn.Module
+        Pre-trained ViT backbone that exposes ``patch_size``, ``hidden_dim``,
+        and ``num_tokens`` attributes.
+    image_size : int, optional
+        Spatial size of the input imagery in pixels (default 256).
+    target_size : int, optional
+        Desired spatial size of the reconstructed output (default 256).
+    encode_time : bool, optional
+        Append sinusoidal time encoding to decoder tokens (default False).
+    encode_coords : bool, optional
+        Append coordinate encoding to decoder tokens (default False).
+    encode_sat_angle : bool, optional
+        Append satellite-angle encoding to decoder tokens (default False).
+    encode_solar_angle : bool, optional
+        Append solar-angle encoding to decoder tokens (default False).
+    """
+
     def __init__(
         self,
         end_filters,
@@ -381,6 +627,32 @@ class ViTConvDecoder_Conv2DMultiHead(nn.Module):
         encode_sat_angle=False,
         encode_solar_angle=False
     ):
+        """Initialise all sub-modules and hyper-parameter attributes.
+
+        Parameters
+        ----------
+        end_filters : int
+            Number of output channels per property head.
+        num_timesteps : int
+            Number of temporal frames in each input sequence.
+        num_properties : int, optional
+            Number of geophysical properties to predict.
+        backbone : nn.Module
+            Pre-trained ViT backbone providing ``patch_size``, ``hidden_dim``,
+            and ``num_tokens``.
+        image_size : int, optional
+            Spatial size of the input imagery in pixels.
+        target_size : int, optional
+            Desired spatial size of the reconstructed output.
+        encode_time : bool, optional
+            Forward sinusoidal time encoding into the decoder.
+        encode_coords : bool, optional
+            Forward coordinate encoding into the decoder.
+        encode_sat_angle : bool, optional
+            Forward satellite-angle encoding into the decoder.
+        encode_solar_angle : bool, optional
+            Forward solar-angle encoding into the decoder.
+        """
         super().__init__()
         self.end_filters = end_filters
         self.num_timesteps = num_timesteps
@@ -419,6 +691,19 @@ class ViTConvDecoder_Conv2DMultiHead(nn.Module):
         self.out = self._output_layers()
 
     def _conv_up_layers(self):
+        """Build the transposed-convolution upsampling stack.
+
+        Doubles the spatial resolution at each stage with a
+        ``ConvTranspose2d`` followed by a ``ResidualConv`` and ``ReLU``
+        until ``target_size`` is reached.
+
+        Returns
+        -------
+        nn.Sequential
+            Sequential module that maps
+            ``(B, hidden_dim * num_timesteps, H, H)`` to
+            ``(B, out_dim, target_size, target_size)``.
+        """
         size = self.image_size // self.patch_size  # Initial size after reshaping
         in_dim = self.hidden_dim * self.num_timesteps
         self.out_dim = (self.hidden_dim * self.num_timesteps) // 2
@@ -454,6 +739,15 @@ class ViTConvDecoder_Conv2DMultiHead(nn.Module):
         return conv_up
 
     def _output_layers(self):
+        """Build the per-property output heads.
+
+        Returns
+        -------
+        nn.ModuleList
+            One ``nn.Sequential`` per property, each mapping
+            ``(B, out_dim, H, W)`` to ``(B, end_filters, H, W)`` via
+            a residual block, ReLU, 1×1 Conv, and Tanh activation.
+        """
         # NOTE: We could also implement a linear project head here
         out = nn.ModuleList(
             [
@@ -480,6 +774,28 @@ class ViTConvDecoder_Conv2DMultiHead(nn.Module):
         return out
 
     def forward(self, x, timestamps=None, coords=None, sat_angle=None, solar_angle=None):
+        """Run a full decoder forward pass with convolutional upsampling.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Encoded token sequence of shape
+            ``(B, sequence_length, hidden_dim)``.
+        timestamps : torch.Tensor or None, optional
+            Temporal metadata forwarded to the decoder (default None).
+        coords : torch.Tensor or None, optional
+            Coordinate metadata forwarded to the decoder (default None).
+        sat_angle : torch.Tensor or None, optional
+            Satellite-angle metadata forwarded to the decoder (default None).
+        solar_angle : torch.Tensor or None, optional
+            Solar-angle metadata forwarded to the decoder (default None).
+
+        Returns
+        -------
+        torch.Tensor
+            Reconstructed property maps of shape
+            ``(B, num_properties, end_filters, target_size, target_size)``.
+        """
         # build decoder input
         x = self.decoder.embed(x) # Shape [B, squence_length, hidden_dim]
         # decoder forward pass

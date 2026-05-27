@@ -10,6 +10,8 @@ import torch.nn as nn
 
 
 class ModelFromHydraRun(pl.LightningModule):
+    """ Lightning wrapper that loads a model from a saved Hydra run checkpoint. """
+
     def __init__(
         self,
         hydra_run_path,
@@ -20,11 +22,23 @@ class ModelFromHydraRun(pl.LightningModule):
         enable_loading_weights: bool = True,
         model_setvars={},
     ):
-        """
-        hydra_run_path: see utils.load_ckpt_from_hydra_run
-        model_expression: a str that will be evaluated within the model
-                          object loaded from the checkpoint
+        """ Initialize ModelFromHydraRun.
 
+            Parameters
+            ----------
+            hydra_run_path : str. Path to the Hydra run directory; see utils.load_ckpt_from_hydra_run.
+            model_expression : str or None. Python expression evaluated on the loaded model object
+                to select a sub-module (e.g. 'backbone') (optional).
+            freeze : bool. If True, freeze all model parameters after loading (optional).
+            unfreeze : bool. If True, unfreeze all model parameters after loading (optional).
+            loading_from_state_dict : bool. If True, load weights from a state-dict checkpoint (optional).
+            enable_loading_weights : bool. If True, actually load the checkpoint weights (optional).
+            model_setvars : dict. Mapping of attribute expressions to values set on the model
+                after loading (e.g. {'encoder.mask_ratio': 0.0}) (optional).
+
+            Returns
+            -------
+            None.
         """
         super().__init__()
 
@@ -81,11 +95,32 @@ class ModelFromHydraRun(pl.LightningModule):
             self.output_dim = self.model.output_dim
 
     def forward(self, x):
+        """ Forward pass delegated to the wrapped model.
+
+            Parameters
+            ----------
+            x : any. Input passed directly to the underlying model's forward method.
+
+            Returns
+            -------
+            any. Output of the underlying model.
+        """
         return self.model(x)
 
 
 
 def nontrainable_breakdown(model: nn.Module, topn=30):
+    """ Log a breakdown of non-trainable parameter counts by owning module.
+
+        Parameters
+        ----------
+        model : nn.Module. The model to inspect.
+        topn : int. Maximum number of modules to report, sorted by parameter count (optional).
+
+        Returns
+        -------
+        None.
+    """
     # Map each parameter to the *immediate* owning module for precise attribution
     owning = {}
     for mod_name, mod in model.named_modules():

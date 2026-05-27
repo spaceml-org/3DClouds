@@ -33,6 +33,21 @@ class CloudsatGEOTransform:
         embed_sizes_dict: dict | None = None,
         stack_keys: list[str] = None,  # if not None, stack the keys in the data_dict
     ):
+        """ Initialize CloudsatGEOTransform.
+
+            Parameters
+            ----------
+            target_bands : list or None. List of band name strings for geo sats (optional).
+            target_wavelengths : list or None. List of wavelengths in nm (optional).
+            cloudsat_variables : list. CloudSat variable names to include. Default ["Radar_Reflectivity"].
+            satellite : str or None. Satellite identifier (optional).
+            embed_sizes_dict : dict or None. Embedding sizes dictionary (optional).
+            stack_keys : list of str or None. Keys to stack into the data dict (optional).
+
+            Returns
+            -------
+            None.
+        """
         transform_list = []
 
         # Geostationary Satellite Transforms
@@ -103,6 +118,7 @@ class CloudsatGEOTransform:
         self.transform = Compose(transform_list)
 
     def __call__(self, sample):
+        """ Apply the composed transform pipeline to a sample. """
         s = self.transform(sample)
         return s
 

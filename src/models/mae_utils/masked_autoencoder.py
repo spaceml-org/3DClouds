@@ -20,21 +20,15 @@ class MaskedAutoEncoderEncoder(vision_transformer.Encoder):
     - [0]: Masked Autoencoder, 2021, https://arxiv.org/abs/2111.06377
     - [1]: https://github.com/facebookresearch/mae
 
-    Attributes:
-        seq_length:
-            Token sequence length, including the class token.
-        num_layers:
-            Number of transformer blocks.
-        num_heads:
-            Number of attention heads.
-        hidden_dim:
-            Dimension of the input and output tokens.
-        mlp_dim:
-            Dimension of the MLP in the transformer block.
-        dropout:
-            Percentage of elements set to zero after the MLP in the transformer.
-        attention_dropout:
-            Percentage of elements set to zero after the attention head.
+    Attributes
+    ----------
+    seq_length : int. Token sequence length, including the class token.
+    num_layers : int. Number of transformer blocks.
+    num_heads : int. Number of attention heads.
+    hidden_dim : int. Dimension of the input and output tokens.
+    mlp_dim : int. Dimension of the MLP in the transformer block.
+    dropout : float. Percentage of elements set to zero after the MLP in the transformer.
+    attention_dropout : float. Percentage of elements set to zero after the attention head.
 
     """
 
@@ -49,6 +43,23 @@ class MaskedAutoEncoderEncoder(vision_transformer.Encoder):
         attention_dropout: float,
         norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
     ):
+        """ Initialize MaskedAutoEncoderEncoder.
+
+            Parameters
+            ----------
+            seq_length : int. Token sequence length, including the class token.
+            num_layers : int. Number of transformer blocks.
+            num_heads : int. Number of attention heads.
+            hidden_dim : int. Dimension of the input and output tokens.
+            mlp_dim : int. Dimension of the MLP in the transformer block.
+            dropout : float. Percentage of elements set to zero after the MLP in the transformer.
+            attention_dropout : float. Percentage of elements set to zero after the attention head.
+            norm_layer : Callable. Callable that creates a normalization layer.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__(
             seq_length=seq_length,
             num_layers=num_layers,
@@ -87,18 +98,18 @@ class MaskedAutoEncoderEncoder(vision_transformer.Encoder):
     def forward(
         self, input: torch.Tensor, idx_keep: torch.Tensor | None = None
     ) -> torch.Tensor:
-        """Encode input tokens.
+        """ Encode input tokens.
 
-        Args:
-            input:
-                Batch of token sequences.
-            idx_keep:
-                Tensor with shape (batch_size, num_tokens_to_keep) where each
+            Parameters
+            ----------
+            input : torch.Tensor. Batch of token sequences.
+            idx_keep : torch.Tensor | None. Tensor with shape (batch_size, num_tokens_to_keep) where each
                 entry is an index of the token to keep in the respective batch.
                 If specified, only the indexed tokens will be encoded.
 
-        Returns:
-            Batch of encoded output tokens.
+            Returns
+            -------
+            torch.Tensor. Batch of encoded output tokens.
         """
         input = input + self.interpolate_pos_encoding(
             input
@@ -114,15 +125,18 @@ class MaskedAutoEncoderEncoder(vision_transformer.Encoder):
         )  # shape = [batch_size, (img_size / patch_size)**2 +1, hidden_dim]
 
     def interpolate_pos_encoding(self, input: torch.Tensor):
-        """Returns the interpolated positional embedding for the given input.
+        """ Returns the interpolated positional embedding for the given input.
 
-        This function interpolates self.pos_embedding for all tokens in the input,
-        ignoring the class token. This allows encoding variable sized images.
+            This function interpolates self.pos_embedding for all tokens in the input,
+            ignoring the class token. This allows encoding variable sized images.
 
-        Args:
-            input:
-               Input tensor with shape (batch_size, num_sequences).
+            Parameters
+            ----------
+            input : torch.Tensor. Input tensor with shape (batch_size, num_sequences).
 
+            Returns
+            -------
+            torch.Tensor. Interpolated positional embedding for the given input.
         """
         # code copied from:
         # https://github.com/facebookresearch/msn/blob/4388dc1eadbe3042b85d3296d41b9b207656e043/src/deit.py#L291
@@ -155,36 +169,25 @@ class MaskedAutoEncoderBackbone(vision_transformer.VisionTransformer):
     - [1]: https://github.com/facebookresearch/mae
     - [2]: Early Convolutions Help Transformers See Better, 2021, https://arxiv.org/abs/2106.14881.
 
-    Attributes:
-        image_size:
-            Input image size.
-        patch_size:
-            Width and height of the image patches. image_size must be a multiple
-            of patch_size.
-        num_layers:
-            Number of transformer blocks.
-        num_heads:
-            Number of attention heads.
-        hidden_dim:
-            Dimension of the input and output tokens.
-        mlp_dim:
-            Dimension of the MLP in the transformer block.
-        dropout:
-            Percentage of elements set to zero after the MLP in the transformer.
-        attention_dropout:
-            Percentage of elements set to zero after the attention head.
-        num_classes:
-            Number of classes for the classification head. Currently not used.
-        representation_size:
-            If specified, an additional linear layer is added before the
-            classification head to change the token dimension from hidden_dim
-            to representation_size. Currently not used.
-        norm_layer:
-            Callable that creates a normalization layer.
-        conv_stem_configs:
-            If specified, a convolutional stem is added at the beginning of the
-            network following [2]. Not used in the original Masked Autoencoder
-            paper [0].
+    Attributes
+    ----------
+    image_size : int. Input image size.
+    patch_size : int. Width and height of the image patches. image_size must be a multiple
+        of patch_size.
+    num_layers : int. Number of transformer blocks.
+    num_heads : int. Number of attention heads.
+    hidden_dim : int. Dimension of the input and output tokens.
+    mlp_dim : int. Dimension of the MLP in the transformer block.
+    dropout : float. Percentage of elements set to zero after the MLP in the transformer.
+    attention_dropout : float. Percentage of elements set to zero after the attention head.
+    num_classes : int. Number of classes for the classification head. Currently not used.
+    representation_size : int | None. If specified, an additional linear layer is added before the
+        classification head to change the token dimension from hidden_dim
+        to representation_size. Currently not used.
+    norm_layer : Callable. Callable that creates a normalization layer.
+    conv_stem_configs : list[ConvStemConfig] | None. If specified, a convolutional stem is added at the beginning of the
+        network following [2]. Not used in the original Masked Autoencoder
+        paper [0].
 
     """
 
@@ -203,6 +206,31 @@ class MaskedAutoEncoderBackbone(vision_transformer.VisionTransformer):
         norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
         conv_stem_configs: list[ConvStemConfig] | None = None,
     ):
+        """ Initialize MaskedAutoEncoderBackbone.
+
+            Parameters
+            ----------
+            image_size : int. Input image size.
+            patch_size : int. Width and height of the image patches. image_size must be a multiple
+                of patch_size.
+            num_layers : int. Number of transformer blocks.
+            num_heads : int. Number of attention heads.
+            hidden_dim : int. Dimension of the input and output tokens.
+            mlp_dim : int. Dimension of the MLP in the transformer block.
+            dropout : float. Percentage of elements set to zero after the MLP in the transformer.
+            attention_dropout : float. Percentage of elements set to zero after the attention head.
+            num_classes : int. Number of classes for the classification head. Currently not used.
+            representation_size : int | None. If specified, an additional linear layer is added before the
+                classification head to change the token dimension from hidden_dim
+                to representation_size. Currently not used.
+            norm_layer : Callable. Callable that creates a normalization layer.
+            conv_stem_configs : list[ConvStemConfig] | None. If specified, a convolutional stem is added at the beginning of the
+                network following [2]. Not used in the original Masked Autoencoder paper [0].
+
+            Returns
+            -------
+            None.
+        """
         super().__init__(
             image_size=image_size,
             patch_size=patch_size,
@@ -258,15 +286,17 @@ class MaskedAutoEncoderBackbone(vision_transformer.VisionTransformer):
     def images_to_tokens(
         self, images: torch.Tensor, prepend_class_token: bool
     ) -> torch.Tensor:
-        """Converts images into patch tokens.
+        """ Converts images into patch tokens.
 
-        Args:
-            images:
-                Tensor with shape (batch_size, channels, image_size, image_size).
+            Parameters
+            ----------
+            images : torch.Tensor. Tensor with shape (batch_size, channels, image_size, image_size).
+            prepend_class_token : bool. If True, prepends the class token to the sequence.
 
-        Returns:
-            Tensor with shape (batch_size, sequence_length - 1, hidden_dim)
-            containing the patch tokens.
+            Returns
+            -------
+            torch.Tensor. Tensor with shape (batch_size, sequence_length - 1, hidden_dim)
+                containing the patch tokens.
         """
         # image.shape = [batch_size, n_channels, img_size, img_size]
         x = self.conv_proj(images)
@@ -280,20 +310,20 @@ class MaskedAutoEncoderBackbone(vision_transformer.VisionTransformer):
     def forward(
         self, images: torch.Tensor, idx_keep: torch.Tensor | None = None
     ) -> torch.Tensor:
-        """Returns encoded class tokens from a batch of images.
+        """ Returns encoded class tokens from a batch of images.
 
-        Args:
-            images:
-                Tensor with shape (batch_size, channels, image_size, image_size).
-            idx_keep:
-                Tensor with shape (batch_size, num_tokens_to_keep) where each
+            Parameters
+            ----------
+            images : torch.Tensor. Tensor with shape (batch_size, channels, image_size, image_size).
+            idx_keep : torch.Tensor | None. Tensor with shape (batch_size, num_tokens_to_keep) where each
                 entry is an index of the token to keep in the respective batch.
                 If specified, only the indexed tokens will be passed to the
                 encoder.
 
-        Returns:
-            Tensor with shape (batch_size, hidden_dim) containing the
-            encoded class token for every image.
+            Returns
+            -------
+            torch.Tensor. Tensor with shape (batch_size, hidden_dim) containing the
+                encoded class token for every image.
 
         """
         out = self.encode(images, idx_keep)
@@ -303,20 +333,20 @@ class MaskedAutoEncoderBackbone(vision_transformer.VisionTransformer):
     def encode(
         self, images: torch.Tensor, idx_keep: torch.Tensor | None = None
     ) -> torch.Tensor:
-        """Returns encoded class and patch tokens from images.
+        """ Returns encoded class and patch tokens from images.
 
-        Args:
-            images:
-                Tensor with shape (batch_size, channels, image_size, image_size).
-            idx_keep:
-                Tensor with shape (batch_size, num_tokens_to_keep) where each
+            Parameters
+            ----------
+            images : torch.Tensor. Tensor with shape (batch_size, channels, image_size, image_size).
+            idx_keep : torch.Tensor | None. Tensor with shape (batch_size, num_tokens_to_keep) where each
                 entry is an index of the token to keep in the respective batch.
                 If specified, only the indexed tokens will be passed to the
                 encoder.
 
-        Returns:
-            Tensor with shape (batch_size, sequence_length, hidden_dim)
-            containing the encoded class and patch tokens for every image.
+            Returns
+            -------
+            torch.Tensor. Tensor with shape (batch_size, sequence_length, hidden_dim)
+                containing the encoded class and patch tokens for every image.
 
         """
         # image.shape = [batch_size, n_channels, img_size, img_size]
@@ -335,27 +365,19 @@ class MaskedAutoEncoderDecoder(vision_transformer.Encoder):
     - [0]: Masked Autoencoder, 2021, https://arxiv.org/abs/2111.06377
     - [1]: https://github.com/facebookresearch/mae
 
-    Attributes:
-        seq_length:
-            Token sequence length, including the class token.
-        num_layers:
-            Number of transformer blocks.
-        num_heads:
-            Number of attention heads.
-        embed_input_dim:
-            Dimension of the input tokens. Usually be equal to the hidden
-            dimension of the MaskedAutoEncoderEncoder or MaskedAutoEncoderBackbone.
-        hidden_dim:
-            Dimension of the decoder tokens.
-        mlp_dim:
-            Dimension of the MLP in the transformer block.
-        out_dim:
-            Output dimension of the prediction for a single patch. Usually equal
-            to (3 * patch_size ** 2).
-        dropout:
-            Percentage of elements set to zero after the MLP in the transformer.
-        attention_dropout:
-            Percentage of elements set to zero after the attention head.
+    Attributes
+    ----------
+    seq_length : int. Token sequence length, including the class token.
+    num_layers : int. Number of transformer blocks.
+    num_heads : int. Number of attention heads.
+    embed_input_dim : int. Dimension of the input tokens. Usually be equal to the hidden
+        dimension of the MaskedAutoEncoderEncoder or MaskedAutoEncoderBackbone.
+    hidden_dim : int. Dimension of the decoder tokens.
+    mlp_dim : int. Dimension of the MLP in the transformer block.
+    out_dim : int. Output dimension of the prediction for a single patch. Usually equal
+        to (3 * patch_size ** 2).
+    dropout : float. Percentage of elements set to zero after the MLP in the transformer.
+    attention_dropout : float. Percentage of elements set to zero after the attention head.
 
     """
 
@@ -372,6 +394,27 @@ class MaskedAutoEncoderDecoder(vision_transformer.Encoder):
         attention_dropout: float = 0.0,
         norm_layer: Callable[..., nn.Module] = partial(nn.LayerNorm, eps=1e-6),
     ):
+        """ Initialize MaskedAutoEncoderDecoder.
+
+            Parameters
+            ----------
+            seq_length : int. Token sequence length, including the class token.
+            num_layers : int. Number of transformer blocks.
+            num_heads : int. Number of attention heads.
+            embed_input_dim : int. Dimension of the input tokens. Usually equal to the hidden
+                dimension of the MaskedAutoEncoderEncoder or MaskedAutoEncoderBackbone.
+            hidden_dim : int. Dimension of the decoder tokens.
+            mlp_dim : int. Dimension of the MLP in the transformer block.
+            out_dim : int. Output dimension of the prediction for a single patch. Usually equal
+                to (3 * patch_size ** 2).
+            dropout : float. Percentage of elements set to zero after the MLP in the transformer.
+            attention_dropout : float. Percentage of elements set to zero after the attention head.
+            norm_layer : Callable. Callable that creates a normalization layer.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__(
             seq_length=seq_length,
             num_layers=num_layers,
@@ -386,14 +429,15 @@ class MaskedAutoEncoderDecoder(vision_transformer.Encoder):
         self.prediction_head = nn.Linear(hidden_dim, out_dim)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        """Returns predicted pixel values from encoded tokens.
+        """ Returns predicted pixel values from encoded tokens.
 
-        Args:
-            input:
-                Tensor with shape (batch_size, seq_length, embed_input_dim).
+            Parameters
+            ----------
+            input : torch.Tensor. Tensor with shape (batch_size, seq_length, embed_input_dim).
 
-        Returns:
-            Tensor with shape (batch_size, seq_length, out_dim).
+            Returns
+            -------
+            torch.Tensor. Tensor with shape (batch_size, seq_length, out_dim).
 
         """
         out = self.embed(input)
@@ -401,65 +445,69 @@ class MaskedAutoEncoderDecoder(vision_transformer.Encoder):
         return self.predict(out)
 
     def embed(self, input: torch.Tensor) -> torch.Tensor:
-        """Embeds encoded input tokens into decoder token dimension.
+        """ Embeds encoded input tokens into decoder token dimension.
 
-        This is a single linear layer that changes the token dimension from
-        embed_input_dim to hidden_dim.
+            This is a single linear layer that changes the token dimension from
+            embed_input_dim to hidden_dim.
 
-        Args:
-            input:
-                Tensor with shape (batch_size, seq_length, embed_input_dim)
+            Parameters
+            ----------
+            input : torch.Tensor. Tensor with shape (batch_size, seq_length, embed_input_dim)
                 containing the encoded tokens.
 
-        Returns:
-            Tensor with shape (batch_size, seq_length, hidden_dim) containing
-            the embedded tokens.
+            Returns
+            -------
+            torch.Tensor. Tensor with shape (batch_size, seq_length, hidden_dim) containing
+                the embedded tokens.
 
         """
         return self.decoder_embed(input)
 
     def decode(self, input: torch.Tensor) -> torch.Tensor:
-        """Forward pass through the decoder transformer.
+        """ Forward pass through the decoder transformer.
 
-        Args:
-            input:
-                Tensor with shape (batch_size, seq_length, hidden_dim) containing
+            Parameters
+            ----------
+            input : torch.Tensor. Tensor with shape (batch_size, seq_length, hidden_dim) containing
                 the encoded tokens.
 
-        Returns:
-            Tensor with shape (batch_size, seq_length, hidden_dim) containing
-            the decoded tokens.
+            Returns
+            -------
+            torch.Tensor. Tensor with shape (batch_size, seq_length, hidden_dim) containing
+                the decoded tokens.
 
         """
         return super().forward(input)
 
     def decode_layers(self, input: torch.Tensor) -> torch.Tensor:
-        """Forward pass through the decoder transformer layers.
-        Assumes that positional encoding has already been added to the input.
+        """ Forward pass through the decoder transformer layers.
+            Assumes that positional encoding has already been added to the input.
 
-        Args:
-            input:
-                Tensor with shape (batch_size, seq_length, hidden_dim) containing
+            Parameters
+            ----------
+            input : torch.Tensor. Tensor with shape (batch_size, seq_length, hidden_dim) containing
                 the encoded tokens.
 
-        Returns:
-            Tensor with shape (batch_size, seq_length, hidden_dim) containing
-            the decoded tokens.
+            Returns
+            -------
+            torch.Tensor. Tensor with shape (batch_size, seq_length, hidden_dim) containing
+                the decoded tokens.
 
         """
         return self.ln(self.layers(self.dropout(input)))
 
     def predict(self, input: torch.Tensor) -> torch.Tensor:
-        """Predics pixel values from decoded tokens.
+        """ Predicts pixel values from decoded tokens.
 
-        Args:
-            input:
-                Tensor with shape (batch_size, seq_length, hidden_dim) containing
+            Parameters
+            ----------
+            input : torch.Tensor. Tensor with shape (batch_size, seq_length, hidden_dim) containing
                 the decoded tokens.
 
-        Returns:
-            Tensor with shape (batch_size, seq_length, out_dim) containing
-            predictions for each token.
+            Returns
+            -------
+            torch.Tensor. Tensor with shape (batch_size, seq_length, out_dim) containing
+                predictions for each token.
 
         """
         return self.prediction_head(input)

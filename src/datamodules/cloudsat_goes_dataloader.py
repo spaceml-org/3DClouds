@@ -13,6 +13,8 @@ from src.utils import get_list_filenames, get_split
 
 
 class CloudsatGOESDataModule(LightningDataModule):
+    """ LightningDataModule for CloudSat-paired GOES satellite data. """
+
     def __init__(
         self,
         data_dir,
@@ -30,6 +32,29 @@ class CloudsatGOESDataModule(LightningDataModule):
         file_number: int = None,
         filter_clear_sky: dict | None = None,
     ):
+        """ Initialize CloudsatGOESDataModule.
+
+            Parameters
+            ----------
+            data_dir : str. Path to the directory containing CloudSat-GOES NetCDF files.
+            splits_dict : dict. Dictionary specifying train/test/val split criteria (optional).
+            transforms : callable | None. Transform to apply to each sample (optional).
+            ext : str. File extension to search for in data_dir (optional).
+            batch_size : int. Number of samples per batch (optional).
+            num_workers : int. Number of DataLoader worker processes (optional).
+            pin_memory : bool. If True, pins tensors to memory for faster GPU transfer (optional).
+            prefetch_factor : int. Number of batches to prefetch per worker (optional).
+            load_overpass_mask : bool. If True, loads the CloudSat overpass mask (optional).
+            load_zenith : bool. If True, loads zenith angle data (optional).
+            load_solar : bool. If True, loads solar angle data (optional).
+            cloudsat_variables : list[str]. CloudSat variable names to load (optional).
+            file_number : int. If set, randomly subsamples this many files from the full list (optional).
+            filter_clear_sky : dict | None. Parameters for clear-sky scene filtering; None disables filtering (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.save_hyperparameters(logger=False)
         self.prefetch_factor = prefetch_factor
@@ -105,16 +130,33 @@ class CloudsatGOESDataModule(LightningDataModule):
         logger.info(f"Length of val dataset: {len(self.val_dataset)}")
 
     def prepare_data(self):
+        """ Delegate prepare_data to all sub-datasets. """
         self.train_dataset.prepare_data()
         self.test_dataset.prepare_data()
         self.val_dataset.prepare_data()
 
     def setup(self, stage):
+        """ Delegate setup to all sub-datasets.
+
+            Parameters
+            ----------
+            stage : str. One of 'fit', 'validate', 'test', or 'predict'.
+
+            Returns
+            -------
+            None.
+        """
         self.train_dataset.setup(stage)
         self.test_dataset.setup(stage)
         self.val_dataset.setup(stage)
 
     def train_dataloader(self):
+        """ Return a shuffled DataLoader over the training split.
+
+            Returns
+            -------
+            DataLoader. Training DataLoader with shuffle=True.
+        """
         return DataLoader(
             dataset=self.train_dataset,
             batch_size=self.hparams.batch_size,
@@ -127,6 +169,12 @@ class CloudsatGOESDataModule(LightningDataModule):
         )
 
     def val_dataloader(self):
+        """ Return a DataLoader over the validation split.
+
+            Returns
+            -------
+            DataLoader. Validation DataLoader with shuffle=False.
+        """
         return DataLoader(
             dataset=self.val_dataset,
             batch_size=self.hparams.batch_size,
@@ -139,6 +187,12 @@ class CloudsatGOESDataModule(LightningDataModule):
         )
 
     def test_dataloader(self):
+        """ Return a DataLoader over the test split.
+
+            Returns
+            -------
+            DataLoader. Test DataLoader with shuffle=False.
+        """
         return DataLoader(
             dataset=self.test_dataset,
             batch_size=self.hparams.batch_size,

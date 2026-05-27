@@ -13,7 +13,22 @@ from torchvision import transforms
 
 # Classes for the model blocks
 class ResidualConv(nn.Module):
+    """ Residual convolutional block with batch normalisation and LeakyReLU activations. """
+
     def __init__(self, input_dim, output_dim, stride, padding):
+        """ Initialize ResidualConv.
+
+            Parameters
+            ----------
+            input_dim : int. Number of input channels.
+            output_dim : int. Number of output channels.
+            stride : int. Stride for the first convolution in the main branch.
+            padding : int or str. Padding for the first convolution in the main branch.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
 
         self.conv_block = nn.Sequential(
@@ -32,13 +47,38 @@ class ResidualConv(nn.Module):
         )
 
     def forward(self, x):
+        """ Apply the residual convolution block.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input feature map.
+
+            Returns
+            -------
+            torch.Tensor. Output of the residual block (main branch + skip connection).
+        """
         x1 = self.conv_block(x)
         x2 = self.conv_skip(x)
         return x1 + x2
 
 
 class Upsample(nn.Module):
+    """ Transposed-convolution upsample block. """
+
     def __init__(self, input_dim, output_dim, kernel, stride):
+        """ Initialize Upsample.
+
+            Parameters
+            ----------
+            input_dim : int. Number of input channels.
+            output_dim : int. Number of output channels.
+            kernel : int. Kernel size for the transposed convolution.
+            stride : int. Stride for the transposed convolution.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
 
         self.upsample = nn.ConvTranspose2d(
@@ -46,24 +86,72 @@ class Upsample(nn.Module):
         )
 
     def forward(self, x):
+        """ Apply transposed convolution to upsample the input.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input feature map.
+
+            Returns
+            -------
+            torch.Tensor. Upsampled feature map.
+        """
         return self.upsample(x)
 
 
 class UpBlock(nn.Module):
+    """ Upsampling block that concatenates skip connection and applies a residual convolution. """
+
     def __init__(self, input_dim, output_dim):
+        """ Initialize UpBlock.
+
+            Parameters
+            ----------
+            input_dim : int. Number of input channels (from lower decoder level).
+            output_dim : int. Number of output channels.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
 
         self.up = Upsample(input_dim, output_dim, kernel=2, stride=2)
         self.resconv = ResidualConv(output_dim + output_dim, output_dim, 1, 1)
 
     def forward(self, x, res):
+        """ Upsample, concatenate skip connection, and apply residual convolution.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Feature map from the previous decoder step.
+            res : torch.Tensor. Skip-connection feature map from the encoder.
+
+            Returns
+            -------
+            torch.Tensor. Output feature map after upsampling and residual convolution.
+        """
         x = self.up(x)
 
         return self.resconv(torch.cat([x, res], dim=1))
 
 
 class Bridge(nn.Module):
+    """ Bottleneck bridge module connecting encoder and decoder. """
+
     def __init__(self, infilts, outfilts, dropout):
+        """ Initialize Bridge.
+
+            Parameters
+            ----------
+            infilts : int. Number of input channels.
+            outfilts : int. Number of output channels.
+            dropout : float. Dropout probability.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
 
         self.bottleneck = torch.nn.Sequential(
@@ -77,11 +165,23 @@ class Bridge(nn.Module):
         )
 
     def forward(self, x):
+        """ Pass input through the bottleneck sequential block.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input feature map.
+
+            Returns
+            -------
+            torch.Tensor. Output feature map from the bottleneck.
+        """
         return self.bottleneck(x)
 
 
 # Class for the 2D Res-Unet
 class ResUnet(nn.Module):
+    """ 2D Residual U-Net for image-to-image prediction. """
+
     def __init__(
         self,
         depth=4,
@@ -90,6 +190,20 @@ class ResUnet(nn.Module):
         end_filters=16,
         input_dims=[22, 128, 128],
     ):
+        """ Initialize ResUnet.
+
+            Parameters
+            ----------
+            depth : int. Number of encoder/decoder levels (optional).
+            dropout : float. Dropout probability applied at each down-block (optional).
+            start_filters : int. Number of filters in the first encoder block (optional).
+            end_filters : int. Number of filters in the final output layer (optional).
+            input_dims : list of int. Input tensor dimensions [channels, H, W] (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.depth = depth
 
@@ -119,6 +233,16 @@ class ResUnet(nn.Module):
         )
 
     def forward(self, x):
+        """ Run the full encoder-bridge-decoder forward pass.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input tensor of shape (B, C, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Predicted output of shape (B, end_filters, H, W).
+        """
         skip_connections = []
 
         for idx in range(self.depth - 1):
@@ -137,16 +261,50 @@ class ResUnet(nn.Module):
 
 
 class Permute(nn.Module):
+    """ Module that permutes tensor dimensions. """
+
     def __init__(self, *dims):
+        """ Initialize Permute.
+
+            Parameters
+            ----------
+            *dims : int. Desired ordering of dimensions.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.dims = dims
 
     def forward(self, x):
+        """ Permute the input tensor dimensions.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input tensor.
+
+            Returns
+            -------
+            torch.Tensor. Tensor with permuted dimensions.
+        """
         return x.permute(*self.dims)
 
 
 class Classify(nn.Module):
+    """ Reshape module that converts flattened class logits to a per-class volume. """
+
     def __init__(self, num_classes):
+        """ Initialize Classify.
+
+            Parameters
+            ----------
+            num_classes : int. Number of target classes.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
 
         self.num_classes = num_classes
@@ -154,6 +312,16 @@ class Classify(nn.Module):
         self.perm2 = Permute(0, 4, 3, 1, 2)
 
     def forward(self, x):
+        """ Reshape logits into a per-class volume.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input of shape (B, C*num_classes, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Reshaped output of shape (B, num_classes, C, H, W).
+        """
         x = self.perm1(x)
         bs, ps, ps, nf = x.shape
         nf = nf // (self.num_classes)
@@ -166,6 +334,8 @@ class Classify(nn.Module):
 
 
 class ResUnet_seg(nn.Module):
+    """ 2D Residual U-Net for semantic segmentation. """
+
     def __init__(
         self,
         depth=4,
@@ -175,6 +345,21 @@ class ResUnet_seg(nn.Module):
         input_dims=[22, 128, 128],
         num_classes=9,
     ):
+        """ Initialize ResUnet_seg.
+
+            Parameters
+            ----------
+            depth : int. Number of encoder/decoder levels (optional).
+            dropout : float. Dropout probability applied at each down-block (optional).
+            start_filters : int. Number of filters in the first encoder block (optional).
+            end_filters : int. Number of filters per class in the output layer (optional).
+            input_dims : list of int. Input tensor dimensions [channels, H, W] (optional).
+            num_classes : int. Number of segmentation classes (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.depth = depth
         self.num_classes = num_classes
@@ -206,6 +391,16 @@ class ResUnet_seg(nn.Module):
         self.classify = Classify(num_classes)
 
     def forward(self, x):
+        """ Run the encoder-bridge-decoder forward pass and return per-class logits.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input tensor of shape (B, C, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Per-class logit volume of shape (B, num_classes, D, H, W).
+        """
         skip_connections = []
 
         for idx in range(self.depth - 1):
@@ -227,6 +422,8 @@ class ResUnet_seg(nn.Module):
 
 # Classes that divide Unet into an enconder an encoder in order to tokenize within mae
 class UnetEncoder(nn.Module):
+    """ Encoder half of a U-Net for feature extraction and MAE tokenisation. """
+
     def __init__(
         self,
         num_channels=11,
@@ -234,6 +431,19 @@ class UnetEncoder(nn.Module):
         filters_seq=[32, 64, 128, 256],
         dropout=0.5,
     ):
+        """ Initialize UnetEncoder.
+
+            Parameters
+            ----------
+            num_channels : int. Number of input image channels (optional).
+            hidden_dim : int. Number of channels in the final (bridge) feature map (optional).
+            filters_seq : list of int. Channel sizes for each encoder stage (optional).
+            dropout : float. Dropout probability applied at each down-block (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
 
         self.max_pool = torch.nn.MaxPool2d(kernel_size=(2, 2))
@@ -254,6 +464,16 @@ class UnetEncoder(nn.Module):
             setattr(self, "down_block_%d" % idx, down_block)
 
     def forward(self, x):
+        """ Encode input through successive down-blocks with max pooling.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input tensor of shape (B, num_channels, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Encoded feature map at the bottleneck level.
+        """
         # skip_connections = []
 
         x = self.input_layer(x)
@@ -267,24 +487,61 @@ class UnetEncoder(nn.Module):
 
 
 class UpBlock_noskip(nn.Module):
+    """ Upsampling block without a skip connection. """
+
     def __init__(self, input_dim, output_dim):
+        """ Initialize UpBlock_noskip.
+
+            Parameters
+            ----------
+            input_dim : int. Number of input channels.
+            output_dim : int. Number of output channels.
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
 
         self.up = Upsample(input_dim, output_dim, kernel=2, stride=2)
         self.resconv = ResidualConv(output_dim, output_dim, 1, 1)
 
     def forward(self, x):
+        """ Upsample and apply residual convolution (no skip connection).
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input feature map.
+
+            Returns
+            -------
+            torch.Tensor. Output feature map after upsampling and residual convolution.
+        """
         x = self.up(x)
         return self.resconv(x)
 
 
 class UnetDecoder(nn.Module):
+    """ Decoder half of a U-Net (no skip connections) for feature reconstruction. """
+
     def __init__(
         self,
         num_channels=11,
         hidden_dim=768,
         filters_seq=[128, 64, 32],
     ):
+        """ Initialize UnetDecoder.
+
+            Parameters
+            ----------
+            num_channels : int. Number of output image channels (optional).
+            hidden_dim : int. Number of channels in the input bottleneck feature map (optional).
+            filters_seq : list of int. Channel sizes for each decoder stage (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
 
         filters_seq2 = [hidden_dim] + filters_seq  # +[num_channels]
@@ -298,6 +555,16 @@ class UnetDecoder(nn.Module):
         )
 
     def forward(self, x):
+        """ Decode bottleneck features back to the output resolution.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Bottleneck feature map of shape (B, hidden_dim, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Reconstructed output of shape (B, num_channels, H', W').
+        """
         for idx in range(self.depth - 1):
             # res = skip_connections.pop(-1)
             x = getattr(self, "up_block_%d" % idx)(x)

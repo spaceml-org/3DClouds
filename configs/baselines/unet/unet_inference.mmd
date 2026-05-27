@@ -1,0 +1,22 @@
+flowchart TB
+  %% Inference / evaluation flow for configs/baselines/unet
+  %% Standardized node format: Path / Call / Desc / Notes
+
+  AfterFit[Path: after_fit placeholder<br/>Call: post training stage<br/>Desc: Actions performed after training such as loading checkpoints and running tests<br/>Notes: Optional post-processing and evaluation steps] --> S2[Path: src/utils.py<br/>Call: load_ckpt_from_hydra_run<br/>Desc: Find the best or last checkpoint produced by a Hydra run<br/>Notes: Supports selection heuristics]
+  S2 --> B[Path: train.py<br/>Call: load checkpoint and instantiate model<br/>Desc: Load checkpoint weights into BruningUNet for evaluation<br/>Notes: Load state_dict or PL checkpoint]
+
+  B --> T2[Path: train.py<br/>Call: trainer.test invocation<br/>Desc: Run test loop using the selected checkpoint and datamodule<br/>Notes: Calls BruningUNet test_step for per-batch evaluation and logging]
+  T2 --> METRICS[Path: src/validation_utils.py<br/>Call: log_metrics_wandb and evaluation helpers<br/>Desc: Compute final metrics and log images and tables<br/>Notes: Save metric tables and images for reporting]
+
+  T2 --> EXPORT[Path: src/make_inference.py or scripts/inference.sh<br/>Call: inference runner exporter<br/>Desc: Optionally run bulk inference and export predictions to disk or cloud storage<br/>Notes: Produces artifacts for downstream analysis]
+  EXPORT --> PLOT[Path: src/validation_utils.py<br/>Call: plot_multi_profiles<br/>Desc: Prepare diagnostic figures for selected examples<br/>Notes: Helpful for reporting and figures]
+
+  %% Styles
+  style S2 fill:#BFD7FF,stroke:#111,stroke-width:1px,color:#000
+  style B fill:#E9E9E9,stroke:#111,stroke-width:1px,color:#000
+  style T2 fill:#E9E9E9,stroke:#111,stroke-width:1px,color:#000
+  style METRICS fill:#FFF7E6,stroke:#111,stroke-width:1px,color:#000
+  style EXPORT fill:#FFEBC8,stroke:#111,stroke-width:1px,color:#000
+  style PLOT fill:#FFF2CC,stroke:#111,stroke-width:1px,color:#000
+
+

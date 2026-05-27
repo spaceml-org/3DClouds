@@ -75,6 +75,40 @@ class SwinMAE(pl.LightningModule):
         encode_sat_angle=False,
         encode_solar_angle=False,
     ):
+        """ Initialize SwinMAE.
+
+            Parameters
+            ----------
+            img_size : int. Input image size (height and width), assumed square (optional).
+            patch_size : int. Size of each image patch in pixels (optional).
+            in_chans : int. Number of input channels (optional).
+            out_chans : int or None. Number of output channels; defaults to in_chans when None (optional).
+            mask_ratio : float. Fraction of patches to mask during pre-training (optional).
+            masking_window : int. Side length of the square window used for block masking (optional).
+            decoder_embed_dim : int. Embedding dimension for the decoder; must match encoder output (optional).
+            norm_pix_loss : bool. If True, normalize pixel values per patch before computing loss (optional).
+            depths : tuple. Number of Swin Transformer blocks at each hierarchical level (optional).
+            embed_dim : int. Base embedding dimension; doubles at each level (optional).
+            num_heads : tuple. Number of attention heads at each hierarchical level (optional).
+            attention_window : int. Size of the local attention window in patches (optional).
+            mlp_ratio : float. Ratio of MLP hidden dimension to embedding dimension (optional).
+            drop_path_rate : float. Stochastic depth drop-path rate (optional).
+            drop_rate : float. Dropout rate in MLP layers (optional).
+            attn_drop_rate : float. Dropout rate in attention layers (optional).
+            qkv_bias : bool. If True, add learnable bias to Q/K/V projections (optional).
+            norm_layer : callable. Normalization layer constructor (optional).
+            patch_norm : bool. If True, apply normalization after patch embedding (optional).
+            learning_rate : float. Learning rate for the AdamW optimizer (optional).
+            log_image_samples : int. Number of image samples to log to WandB per epoch (optional).
+            encode_time : bool. If True, add temporal positional encoding (optional).
+            encode_coords : bool. If True, add spatial coordinate encoding (optional).
+            encode_sat_angle : bool. If True, add satellite-angle encoding (optional).
+            encode_solar_angle : bool. If True, add solar-angle encoding (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.save_hyperparameters()
         self.mask_ratio = mask_ratio
@@ -147,6 +181,7 @@ class SwinMAE(pl.LightningModule):
         self.initialize_weights()
 
     def initialize_weights(self):
+        """ Initialize positional embeddings, mask token, and all submodule weights. """
         pos_embed = get_2d_sincos_pos_embed(
             self.pos_embed.shape[-1], int(self.num_patches**0.5), cls_token=False
         )
@@ -156,6 +191,16 @@ class SwinMAE(pl.LightningModule):
 
     @staticmethod
     def _init_weights(m):
+        """ Apply Xavier-uniform or constant initialization to Linear and LayerNorm layers.
+
+            Parameters
+            ----------
+            m : nn.Module. Module to initialize.
+
+            Returns
+            -------
+            None.
+        """
         if isinstance(m, nn.Linear):
             torch.nn.init.xavier_uniform_(m.weight)
             if isinstance(m, nn.Linear) and m.bias is not None:
@@ -165,17 +210,20 @@ class SwinMAE(pl.LightningModule):
             nn.init.constant_(m.weight, 1.0)
 
     def on_fit_start(self):
-        """
-        Called by lightning at the beginning of training. This is the point at which the logger is available, so
-        we can now log parameters to wandb.
-        """
+        """ Log hyperparameters to WandB at the start of training. """
         self.logger.experiment.log({"model/mask_ratio": self.mask_ratio})
         super().on_fit_start()
 
     def patchify(self, imgs):
-        """
-        imgs: (N, C, H, W)
-        x: (N, L, patch_size**2 *3)
+        """ Split images into non-overlapping patches.
+
+            Parameters
+            ----------
+            imgs : torch.Tensor. Input images of shape (N, C, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Patches of shape (N, L, patch_size**2 * C).
         """
         p = self.patch_size
         B, C, H, W = imgs.shape
@@ -190,9 +238,15 @@ class SwinMAE(pl.LightningModule):
         return x
 
     def unpatchify(self, x):
-        """
-        x: (N, L, patch_size**2 *C)
-        imgs: (N, C, H, W)
+        """ Reconstruct images from patches.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Patches of shape (N, L, patch_size**2 * C).
+
+            Returns
+            -------
+            torch.Tensor. Reconstructed images of shape (N, C, H, W).
         """
         p = self.patch_size
         h = w = int(x.shape[1] ** 0.5)
@@ -210,19 +264,23 @@ class SwinMAE(pl.LightningModule):
         remove: bool = False,
         mask_len_sparse: bool = False,
     ):
-        """
-        The new masking method, masking the adjacent r*r number of patches together
+        """ Apply block-window masking to a sequence of patch tokens.
 
-        Optional whether to remove the mask patch,
-        if so, the return value returns one more sparse_restore for restoring the order to x
+            Parameters
+            ----------
+            x : torch.Tensor. Input token sequence of shape [N, L, D].
+            r : int. Side length of the masking window; each window contains r*r patches.
+            remove : bool. If True, remove masked patches from the sequence and return a
+                sparse_restore index for later reordering (optional).
+            mask_len_sparse : bool. If True, return a sparse-length mask over windows instead
+                of a full-length mask over patches (optional).
 
-        Optionally, the returned mask index is sparse length or original length,
-        which corresponds to the different size choices of the decoder when restoring the image
-
-        x: [N, L, D]
-        r: There are r*r patches in a window
-        remove: Whether to remove the mask patch
-        mask_len_sparse: Whether the returned mask length is a sparse short length
+            Returns
+            -------
+            torch.Tensor. Masked token tensor.
+            torch.Tensor. Binary mask of shape [N, L] (or [N, d^2] when mask_len_sparse=True);
+                0 = kept, 1 = masked.
+            torch.Tensor. Sparse restore index (only returned when remove=True).
         """
         # NOTE: Now already done before calling this function
         # x = rearrange(x, "B H W C -> B (H W) C")  # Shape [B, L=(W/p * H/p), embed_dim]
@@ -312,6 +370,12 @@ class SwinMAE(pl.LightningModule):
             return x_masked, mask
 
     def build_layers(self):
+        """ Build the hierarchical Swin Transformer encoder layers.
+
+            Returns
+            -------
+            nn.ModuleList. List of BasicBlock encoder layers with patch merging.
+        """
         layers = nn.ModuleList()
         for i in range(self.num_layers):
             # Creates the blocks of Swin transformers in each layer
@@ -333,6 +397,12 @@ class SwinMAE(pl.LightningModule):
         return layers
 
     def build_layers_up(self):
+        """ Build the hierarchical Swin Transformer decoder (up-sampling) layers.
+
+            Returns
+            -------
+            nn.ModuleList. List of BasicBlockUp decoder layers with patch expanding.
+        """
         layers_up = nn.ModuleList()
         for i in range(self.num_layers - 1):
             layer = BasicBlockUp(
@@ -361,6 +431,22 @@ class SwinMAE(pl.LightningModule):
         solar_angle=None,
         mask_tokens=True,
     ):
+        """ Encode input images with optional positional encodings and window masking.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input image tensor of shape [B, C, H, W].
+            timestamps : torch.Tensor or None. Temporal encoding tensor (optional).
+            coords : torch.Tensor or None. Spatial coordinate encoding tensor (optional).
+            sat_angle : torch.Tensor or None. Satellite-angle encoding tensor (optional).
+            solar_angle : torch.Tensor or None. Solar-angle encoding tensor (optional).
+            mask_tokens : bool. If True, apply window masking during pre-training (optional).
+
+            Returns
+            -------
+            torch.Tensor. Encoded latent tensor of shape [B, H', W', decoder_embed_dim].
+            torch.Tensor or None. Binary patch mask [B, L]; None when mask_tokens=False.
+        """
         x = self.patch_embed(
             x
         )  # Shape [B, H/p, W/p, embed_dim] = [B, 256/4, 256/4, 96]
@@ -402,6 +488,20 @@ class SwinMAE(pl.LightningModule):
     def forward_decoder(
         self, x, timestamps=None, coords=None, sat_angle=None, solar_angle=None
     ):
+        """ Decode the latent representation back to patch-pixel space.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Latent tensor from the encoder of shape [B, H', W', decoder_embed_dim].
+            timestamps : torch.Tensor or None. Temporal encoding tensor (optional).
+            coords : torch.Tensor or None. Spatial coordinate encoding tensor (optional).
+            sat_angle : torch.Tensor or None. Satellite-angle encoding tensor (optional).
+            solar_angle : torch.Tensor or None. Solar-angle encoding tensor (optional).
+
+            Returns
+            -------
+            torch.Tensor. Predicted patches of shape [B, L, patch_size**2 * out_chans].
+        """
         x = self.first_patch_expanding(
             x
         )  # [B, 8, 8, 768] --> [B, 8, 8, 1536] --> [B, 16, 16, 768]
@@ -432,10 +532,17 @@ class SwinMAE(pl.LightningModule):
         return x
 
     def forward_loss(self, imgs, pred, mask):
-        """
-        imgs: [N, 3, H, W]
-        pred: [N, L, p*p*3]
-        mask: [N, L], 0 is keep, 1 is remove,
+        """ Compute masked reconstruction loss between predictions and target patches.
+
+            Parameters
+            ----------
+            imgs : torch.Tensor. Original images of shape [N, C, H, W].
+            pred : torch.Tensor. Predicted patches of shape [N, L, patch_size**2 * out_chans].
+            mask : torch.Tensor. Binary mask [N, L]; 0 = keep, 1 = remove.
+
+            Returns
+            -------
+            torch.Tensor. Scalar mean reconstruction loss over masked patches.
         """
         # NOTE: This assumes that the first self.out_chans are the relevant channels to predict.
         imgs = imgs[:, : self.out_chans, :, :]  # Shape [B, 11, 256, 256]
@@ -457,6 +564,17 @@ class SwinMAE(pl.LightningModule):
         return loss
 
     def get_loss(self, batch, batch_idx):
+        """ Run encoder–decoder pipeline and return the masked reconstruction loss.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary containing 'data' and optional auxiliary tensors.
+            batch_idx : int. Index of the current batch.
+
+            Returns
+            -------
+            torch.Tensor. Scalar masked reconstruction loss.
+        """
         x = batch["data"]
         coords = batch["coords"] if self.encode_coords else None
         timestamps = batch["time"] if self.encode_time else None
@@ -481,6 +599,17 @@ class SwinMAE(pl.LightningModule):
         return loss
 
     def forward(self, batch):  # NOTE now taking a full batch and extracting data etc
+        """ Run a full encoder–decoder forward pass and return loss, predictions, and mask.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary containing 'data' and optional auxiliary tensors.
+
+            Returns
+            -------
+            tuple. (loss, pred, mask) where loss is a scalar tensor, pred is the predicted
+            patch tensor [B, L, patch_size**2 * out_chans], and mask is the binary mask [B, L].
+        """
         x = batch["data"]
         coords = batch["coords"] if self.encode_coords else None
         timestamps = batch["time"] if self.encode_time else None
@@ -505,22 +634,56 @@ class SwinMAE(pl.LightningModule):
         return loss, pred, mask
 
     def training_step(self, batch, batch_idx):
+        """ Compute and log the masked reconstruction loss for one training batch.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary with input data and optional auxiliary tensors.
+            batch_idx : int. Index of the current batch.
+
+            Returns
+            -------
+            torch.Tensor. Scalar training loss.
+        """
         loss = self.get_loss(batch, batch_idx)
         self.log("train/loss", loss, on_step=True, on_epoch=True, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
+        """ Compute and log the masked reconstruction loss for one validation batch.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary with input data and optional auxiliary tensors.
+            batch_idx : int. Index of the current batch.
+
+            Returns
+            -------
+            torch.Tensor. Scalar validation loss.
+        """
         self.val_batch = batch
         loss = self.get_loss(batch, batch_idx)
         self.log("val/loss", loss, on_step=True, on_epoch=True, logger=True)
         return loss
 
     def test_step(self, batch, batch_idx):
+        """ Compute and log the masked reconstruction loss for one test batch.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary with input data and optional auxiliary tensors.
+            batch_idx : int. Index of the current batch.
+
+            Returns
+            -------
+            torch.Tensor. Scalar test loss.
+        """
         loss = self.get_loss(batch, batch_idx)
         self.log("test/loss", loss, on_step=True, on_epoch=True, logger=True)
         return loss
 
     def on_validation_epoch_end(self):
+        """ Log masked/predicted/original image reconstructions to WandB at epoch end. """
         images = self.val_batch["data"]
         coords = self.val_batch["coords"] if self.encode_coords else None
         timestamps = self.val_batch["time"] if self.encode_time else None
@@ -624,6 +787,12 @@ class SwinMAE(pl.LightningModule):
         plt.close(fig)
 
     def configure_optimizers(self):
+        """ Configure the AdamW optimizer for training.
+
+            Returns
+            -------
+            torch.optim.AdamW. Optimizer instance.
+        """
         optim = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
         return optim
 

@@ -37,6 +37,8 @@ vit_arch_mapping = {
 
 
 class MaskedAutoEncoder(pl.LightningModule):
+    """ SatMAE-based Masked Autoencoder Lightning module for satellite imagery pre-training. """
+
     def __init__(
         self,
         mask_ratio,
@@ -52,6 +54,27 @@ class MaskedAutoEncoder(pl.LightningModule):
         encode_sat_angle=False,
         encode_solar_angle=False,
     ):
+        """ Initialize MaskedAutoEncoder.
+
+            Parameters
+            ----------
+            mask_ratio : float. Fraction of tokens to mask during pre-training.
+            vit_arch : str. Key identifying the ViT architecture in vit_arch_mapping.
+            log_image_samples : int. Number of samples to log as images per validation epoch (optional).
+            num_channels : int. Number of input channels (optional).
+            out_channels : int or None. Number of predicted output channels; defaults to num_channels (optional).
+            augment : bool. If True, apply RandomResizedCrop augmentation during training (optional).
+            image_size : int. Spatial resolution of input images (optional).
+            learning_rate : float. Learning rate for the AdamW optimizer (optional).
+            encode_time : bool. If True, add temporal positional encoding (optional).
+            encode_coords : bool. If True, add spatial coordinate encoding (optional).
+            encode_sat_angle : bool. If True, add satellite-angle encoding (optional).
+            encode_solar_angle : bool. If True, add solar-angle encoding (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.save_hyperparameters()
         self.num_channels = num_channels  # Changed from 3 in the paper implementation
@@ -130,10 +153,7 @@ class MaskedAutoEncoder(pl.LightningModule):
             logger.info("Using solar angle encoding...")
 
     def on_fit_start(self):
-        """
-        Called by lightning at the beginning of training. This is the point at which the logger is available, so
-        we can now log parameters to wandb.
-        """
+        """ Log hyperparameters to WandB at the start of training. """
         self.logger.experiment.log({"model/vit_arch_name": self.vit_arch_name})
         self.logger.experiment.log({"model/mask_ratio": self.mask_ratio})
         super().on_fit_start()
@@ -141,11 +161,21 @@ class MaskedAutoEncoder(pl.LightningModule):
     def forward_encoder(
         self, images, timestamps, coords, sat_angle, solar_angle, idx_keep
     ):
-        """
-        Re-wrote function based on SatMAE paper.
-        Rather than calling self.backbone.encode,
-        we perform each step of the encoding process separately,
-        adding spatial and temporal encoding to the pos_embedding.
+        """ Encode unmasked patches with optional auxiliary positional encodings.
+
+            Parameters
+            ----------
+            images : torch.Tensor. Input image stack of shape [B, num_imgs, C, H, W].
+            timestamps : torch.Tensor or None. Temporal encodings per image.
+            coords : torch.Tensor or None. Spatial coordinate encodings per image.
+            sat_angle : torch.Tensor or None. Satellite-angle encodings per image.
+            solar_angle : torch.Tensor or None. Solar-angle encodings per image.
+            idx_keep : torch.Tensor. Indices of tokens to keep (unmasked).
+
+            Returns
+            -------
+            torch.Tensor. Encoded representation of the unmasked tokens,
+            shape [B, num_kept_tokens, hidden_dim].
         """
         return self.backbone.encode(
             images, timestamps, coords, sat_angle, solar_angle, idx_keep
@@ -154,6 +184,23 @@ class MaskedAutoEncoder(pl.LightningModule):
     def forward_decoder(
         self, x_encoded, timestamps, coords, sat_angle, solar_angle, idx_keep, idx_mask
     ):
+        """ Decode encoded tokens and predict pixel values for masked patches.
+
+            Parameters
+            ----------
+            x_encoded : torch.Tensor. Encoded unmasked tokens of shape [B, num_kept, hidden_dim].
+            timestamps : torch.Tensor or None. Temporal encodings per image.
+            coords : torch.Tensor or None. Spatial coordinate encodings per image.
+            sat_angle : torch.Tensor or None. Satellite-angle encodings per image.
+            solar_angle : torch.Tensor or None. Solar-angle encodings per image.
+            idx_keep : torch.Tensor. Indices of the kept (unmasked) tokens.
+            idx_mask : torch.Tensor. Indices of the masked tokens to predict.
+
+            Returns
+            -------
+            torch.Tensor. Predicted pixel values for masked tokens,
+            shape [B, num_masked, patch_size**2 * out_channels].
+        """
         batch_size = x_encoded.shape[0]
         # build decoder input
         x_decode = self.decoder.embed(x_encoded)
@@ -175,6 +222,18 @@ class MaskedAutoEncoder(pl.LightningModule):
         return x_pred
 
     def get_loss(self, batch, batch_idx, train=False):
+        """ Run the full MAE pipeline and compute the masked reconstruction loss.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary containing 'data' and optional auxiliary tensors.
+            batch_idx : int. Index of the current batch.
+            train : bool. If True, apply augmentation (when self.augment=True) (optional).
+
+            Returns
+            -------
+            torch.Tensor. Scalar MSE reconstruction loss over masked patches.
+        """
         images = batch["data"]
 
         if len(images.shape) == 4:
@@ -264,24 +323,57 @@ class MaskedAutoEncoder(pl.LightningModule):
         return loss
 
     def get_representation(self, images):
+        """ Encode images and return a flattened representation vector.
+
+            Parameters
+            ----------
+            images : torch.Tensor. Input image tensor passed directly to forward_encoder.
+
+            Returns
+            -------
+            torch.Tensor. Flattened encoded representation of shape [B, seq_length * hidden_dim].
+        """
         x_encoded = self.forward_encoder(images).flatten(
             start_dim=1
         )  # (batch size, seq_length, hidden_dim)
         return x_encoded
 
     def training_step(self, batch, batch_idx):
+        """ Compute and log the reconstruction loss for one training batch.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary with input data and optional auxiliary tensors.
+            batch_idx : int. Index of the current batch.
+
+            Returns
+            -------
+            torch.Tensor. Scalar training loss.
+        """
         loss = self.get_loss(batch, batch_idx, train=True)
         self.log("train/loss", loss, on_step=True, on_epoch=True, logger=True)
         # self.log("epoch_logger", epoch_logger, on_step=True, on_epoch=True, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
+        """ Compute and log the reconstruction loss for one validation batch.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary with input data and optional auxiliary tensors.
+            batch_idx : int. Index of the current batch.
+
+            Returns
+            -------
+            torch.Tensor. Scalar validation loss.
+        """
         self.val_batch = batch  # For image logging
         loss = self.get_loss(batch, batch_idx)
         self.log("val/loss", loss, on_step=True, on_epoch=True, logger=True)
         return loss
 
     def on_validation_epoch_end(self):
+        """ Log masked/predicted/original image reconstructions to WandB at epoch end. """
         images = self.val_batch["data"]
 
         if len(images.shape) == 4:
@@ -467,12 +559,29 @@ class MaskedAutoEncoder(pl.LightningModule):
         plt.close(fig)
 
     def test_step(self, batch, batch_idx):
+        """ Compute and log the reconstruction loss for one test batch.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary with input data and optional auxiliary tensors.
+            batch_idx : int. Index of the current batch.
+
+            Returns
+            -------
+            torch.Tensor. Scalar test loss.
+        """
         loss = self.get_loss(batch, batch_idx)
         self.log("test/loss", loss, on_step=True, on_epoch=True, logger=True)
 
         return loss
 
     def configure_optimizers(self):
+        """ Configure the AdamW optimizer for training.
+
+            Returns
+            -------
+            torch.optim.AdamW. Optimizer instance.
+        """
         optim = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
         return optim
 

@@ -2,13 +2,18 @@ import torch
 
 
 def get_profiles(cs, cs_p, overpass_mask):
-    """
-    Extracts profiles from the Clouds and Clouds Prediction tensors based on the overpass mask.
+    """ Extract per-sample profiles from cloud and prediction tensors using the overpass mask.
 
-    Args:
-        cs (torch.Tensor): Clouds tensor of shape (batch_size, height, padded_length).
-        cs_p (torch.Tensor): Clouds Prediction tensor of shape (batch_size, height, width, length).
-        overpass_mask (torch.Tensor): Overpass mask tensor of shape (batch_size, width, length).
+        Parameters
+        ----------
+        cs : torch.Tensor. Ground truth clouds of shape (B, H, padded_length).
+        cs_p : torch.Tensor. Predicted clouds of shape (B, H, W, L).
+        overpass_mask : torch.Tensor. Overpass mask of shape (B, W, L).
+
+        Returns
+        -------
+        tuple of (list of torch.Tensor, list of torch.Tensor). Per-sample ground truth and
+        predicted profiles, each of shape (H, N) where N is the number of valid overpass pixels.
     """
     batch_size, height, length = cs.shape
     cs_profiles = []

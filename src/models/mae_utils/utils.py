@@ -18,15 +18,15 @@ def batch_shuffle(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Randomly shuffles all tensors in the batch.
 
-    Args:
-        batch:
-            The batch to shuffle.
-        distributed:
-            If True then batches are shuffled across multiple gpus.
+    Parameters
+    ----------
+    batch : torch.Tensor. The batch to shuffle.
+    distributed : bool. If True then batches are shuffled across multiple gpus (optional).
 
-    Returns:
-        A (batch, shuffle) tuple where batch is the shuffled version of the
-        input batch and shuffle is an index to restore the original order.
+    Returns
+    -------
+    tuple[torch.Tensor, torch.Tensor]. A (batch, shuffle) tuple where batch is the shuffled
+    version of the input batch and shuffle is an index to restore the original order.
 
     Examples:
         >>> # forward pass through the momentum model with batch shuffling
@@ -50,16 +50,15 @@ def batch_unshuffle(
 ) -> torch.Tensor:
     """Unshuffles a batch.
 
-    Args:
-        batch:
-            The batch to unshuffle.
-        shuffle:
-            Index to unshuffle the batch.
-        distributed:
-            If True then the batch is unshuffled across multiple gpus.
+    Parameters
+    ----------
+    batch : torch.Tensor. The batch to unshuffle.
+    shuffle : torch.Tensor. Index to unshuffle the batch.
+    distributed : bool. If True then the batch is unshuffled across multiple gpus (optional).
 
-    Returns:
-        The unshuffled batch.
+    Returns
+    -------
+    torch.Tensor. The unshuffled batch.
 
     Examples:
         >>> # forward pass through the momentum model with batch shuffling
@@ -81,6 +80,13 @@ def concat_all_gather(x: torch.Tensor) -> torch.Tensor:
     This code was taken and adapted from here:
     https://github.com/facebookresearch/moco.
 
+    Parameters
+    ----------
+    x : torch.Tensor. Tensor to gather across all gpus.
+
+    Returns
+    -------
+    torch.Tensor. Concatenated tensor from all gpus along dim 0.
     """
     output = [torch.empty_like(x) for _ in range(dist.get_world_size())]
     dist.all_gather(output, x, async_op=False)
@@ -95,14 +101,14 @@ def batch_shuffle_distributed(batch: torch.Tensor) -> tuple[torch.Tensor, torch.
     This code was taken and adapted from here:
     https://github.com/facebookresearch/moco.
 
-    Args:
-        batch:
-            The tensor to shuffle.
+    Parameters
+    ----------
+    batch : torch.Tensor. The tensor to shuffle.
 
-    Returns:
-        A (batch, shuffle) tuple where batch is the shuffled version of the
-        input batch and shuffle is an index to restore the original order.
-
+    Returns
+    -------
+    tuple[torch.Tensor, torch.Tensor]. A (batch, shuffle) tuple where batch is the shuffled
+    version of the input batch and shuffle is an index to restore the original order.
     """
     # gather from all gpus
     batch_size_this = batch.shape[0]
@@ -136,15 +142,14 @@ def batch_unshuffle_distributed(
     This code was taken and adapted from here:
     https://github.com/facebookresearch/moco.
 
-    Args:
-        batch:
-            The tensor to unshuffle.
-        shuffle:
-            Index to restore the original tensor.
+    Parameters
+    ----------
+    batch : torch.Tensor. The tensor to unshuffle.
+    shuffle : torch.Tensor. Index to restore the original tensor.
 
-    Returns:
-        The unshuffled tensor.
-
+    Returns
+    -------
+    torch.Tensor. The unshuffled tensor.
     """
     # gather from all gpus
     batch_size_this = batch.shape[0]
@@ -167,6 +172,14 @@ def deactivate_requires_grad(model: nn.Module):
     context. Use this method to disable gradient computation and therefore
     training for a model.
 
+    Parameters
+    ----------
+    model : nn.Module. The model whose parameters should have requires_grad set to False.
+
+    Returns
+    -------
+    None.
+
     Examples:
         >>> backbone = resnet18()
         >>> deactivate_requires_grad(backbone)
@@ -181,6 +194,14 @@ def activate_requires_grad(model: nn.Module):
     Use this method to activate gradients for a model (e.g. after deactivating
     them using `deactivate_requires_grad(...)`).
 
+    Parameters
+    ----------
+    model : nn.Module. The model whose parameters should have requires_grad set to True.
+
+    Returns
+    -------
+    None.
+
     Examples:
         >>> backbone = resnet18()
         >>> activate_requires_grad(backbone)
@@ -194,6 +215,16 @@ def update_momentum(model: nn.Module, model_ema: nn.Module, m: float):
     """Updates parameters of `model_ema` with Exponential Moving Average of `model`
 
     Momentum encoders are a crucial component of models such as MoCo or BYOL.
+
+    Parameters
+    ----------
+    model : nn.Module. The model providing the current parameter values.
+    model_ema : nn.Module. The momentum model whose parameters are updated in-place.
+    m : float. Momentum coefficient; typically close to 1 (e.g. 0.999).
+
+    Returns
+    -------
+    None.
 
     Examples:
         >>> backbone = resnet18()
@@ -211,7 +242,18 @@ def update_momentum(model: nn.Module, model_ema: nn.Module, m: float):
 
 @torch.no_grad()
 def normalize_weight(weight: nn.Parameter, dim: int = 1, keepdim: bool = True):
-    """Normalizes the weight to unit length along the specified dimension."""
+    """Normalizes the weight to unit length along the specified dimension.
+
+    Parameters
+    ----------
+    weight : nn.Parameter. Weight tensor to normalize in-place.
+    dim : int. Dimension along which to compute the norm (optional).
+    keepdim : bool. Whether to keep the reduced dimension (optional).
+
+    Returns
+    -------
+    None.
+    """
     weight.div_(torch.norm(weight, dim=dim, keepdim=keepdim))
 
 
@@ -228,18 +270,17 @@ def _no_grad_trunc_normal(
 
     This method is based on https://people.sc.fsu.edu/~jburkardt/presentations/truncated_normal.pdf
 
-    Args:
-        tensor:
-            The tensor to initialize.
-        mean:
-            Mean of the distribution.
-        std:
-            Standard deviation of the distribution.
-        a:
-            Minimum value of the distribution, values below will be clamped.
-        b:
-            Maximum value of the distribution, values above will be clamped.
+    Parameters
+    ----------
+    tensor : torch.Tensor. The tensor to initialize in-place.
+    mean : float. Mean of the distribution.
+    std : float. Standard deviation of the distribution.
+    a : float. Lower truncation bound; values below are clamped.
+    b : float. Upper truncation bound; values above are clamped.
 
+    Returns
+    -------
+    torch.Tensor. The initialized tensor (same object as input).
     """
 
     def norm_cdf(x):
@@ -280,16 +321,15 @@ def _no_grad_trunc_normal(
 def repeat_token(token: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
     """Repeats a token size times.
 
-    Args:
-        token:
-            Token tensor with shape (1, 1, dim).
-        size:
-            (batch_size, sequence_length) tuple.
+    Parameters
+    ----------
+    token : torch.Tensor. Token tensor with shape (1, 1, dim).
+    size : tuple[int, int]. (batch_size, sequence_length) target shape.
 
-    Returns:
-        Tensor with shape (batch_size, sequence_length, dim) containing copies
-        of the input token.
-
+    Returns
+    -------
+    torch.Tensor. Tensor with shape (batch_size, sequence_length, dim) containing
+    copies of the input token.
     """
     batch_size, sequence_length = size
     return token.repeat(batch_size, sequence_length, 1)
@@ -298,17 +338,16 @@ def repeat_token(token: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
 def expand_index_like(index: torch.Tensor, tokens: torch.Tensor) -> torch.Tensor:
     """Expands the index along the last dimension of the input tokens.
 
-    Args:
-        index:
-            Index tensor with shape (batch_size, idx_length) where each entry is
-            an index in [0, sequence_length).
-        tokens:
-            Tokens tensor with shape (batch_size, sequence_length, dim).
+    Parameters
+    ----------
+    index : torch.Tensor. Index tensor with shape (batch_size, idx_length) where each
+        entry is an index in [0, sequence_length).
+    tokens : torch.Tensor. Tokens tensor with shape (batch_size, sequence_length, dim).
 
-    Returns:
-        Index tensor with shape (batch_size, idx_length, dim) where the original
-        indices are repeated dim times along the last dimension.
-
+    Returns
+    -------
+    torch.Tensor. Index tensor with shape (batch_size, idx_length, dim) where the
+    original indices are repeated dim times along the last dimension.
     """
     dim = tokens.shape[-1]
     index = index.unsqueeze(-1).expand(-1, -1, dim)
@@ -318,17 +357,16 @@ def expand_index_like(index: torch.Tensor, tokens: torch.Tensor) -> torch.Tensor
 def get_at_index(tokens: torch.Tensor, index: torch.Tensor) -> torch.Tensor:
     """Selects tokens at index.
 
-    Args:
-        tokens:
-            Token tensor with shape (batch_size, sequence_length, dim).
-        index:
-            Index tensor with shape (batch_size, index_length) where each entry is
-            an index in [0, sequence_length).
+    Parameters
+    ----------
+    tokens : torch.Tensor. Token tensor with shape (batch_size, sequence_length, dim).
+    index : torch.Tensor. Index tensor with shape (batch_size, index_length) where each
+        entry is an index in [0, sequence_length).
 
-    Returns:
-        Token tensor with shape (batch_size, index_length, dim) containing the
-        selected tokens.
-
+    Returns
+    -------
+    torch.Tensor. Token tensor with shape (batch_size, index_length, dim) containing
+    the selected tokens.
     """
     index = expand_index_like(index, tokens)
     return torch.gather(tokens, 1, index)
@@ -339,18 +377,16 @@ def set_at_index(
 ) -> torch.Tensor:
     """Copies all values into the input tensor at the given indices.
 
-    Args:
-        tokens:
-            Tokens tensor with shape (batch_size, sequence_length, dim).
-        index:
-            Index tensor with shape (batch_size, index_length).
-        value:
-            Value tensor with shape (batch_size, index_length, dim).
+    Parameters
+    ----------
+    tokens : torch.Tensor. Tokens tensor with shape (batch_size, sequence_length, dim).
+    index : torch.Tensor. Index tensor with shape (batch_size, index_length).
+    value : torch.Tensor. Value tensor with shape (batch_size, index_length, dim).
 
-    Returns:
-        Tokens tensor with shape (batch_size, sequence_length, dim) containing
-        the new values.
-
+    Returns
+    -------
+    torch.Tensor. Tokens tensor with shape (batch_size, sequence_length, dim) containing
+    the new values.
     """
     index = expand_index_like(index, tokens)
     return torch.scatter(tokens, 1, index, value)
@@ -361,18 +397,16 @@ def mask_at_index(
 ) -> torch.Tensor:
     """Copies mask token into the input tensor at the given indices.
 
-    Args:
-        tokens:
-            Tokens tensor with shape (batch_size, sequence_length, dim).
-        index:
-            Index tensor with shape (batch_size, index_length).
-        mask_token:
-            Value tensor with shape (1, 1, dim).
+    Parameters
+    ----------
+    tokens : torch.Tensor. Tokens tensor with shape (batch_size, sequence_length, dim).
+    index : torch.Tensor. Index tensor with shape (batch_size, index_length).
+    mask_token : torch.Tensor. Mask token with shape (1, 1, dim).
 
-    Returns:
-        Tokens tensor with shape (batch_size, sequence_length, dim) containing
-        the new values.
-
+    Returns
+    -------
+    torch.Tensor. Tokens tensor with shape (batch_size, sequence_length, dim) containing
+    the new values.
     """
     mask = tokens.new_zeros(tokens.shape)
     mask = set_at_index(mask, index, 1)
@@ -384,15 +418,15 @@ def prepend_class_token(
 ) -> torch.Tensor:
     """Prepends class token to tokens.
 
-    Args:
-        tokens:
-            Tokens tensor with shape (batch_size, sequence_length, dim).
-        class_token:
-            Class token with shape (1, 1, dim).
+    Parameters
+    ----------
+    tokens : torch.Tensor. Tokens tensor with shape (batch_size, sequence_length, dim).
+    class_token : torch.Tensor. Class token with shape (1, 1, dim).
 
-    Returns:
-        Tokens tensor with the class token prepended at index 0 in every
-        sequence. The tensor has shape (batch_size, sequence_length + 1, dim).
+    Returns
+    -------
+    torch.Tensor. Tokens tensor with the class token prepended at index 0 in every
+    sequence, with shape (batch_size, sequence_length + 1, dim).
     """
     batch_size = tokens.shape[0]
     batch_class_token = class_token.expand(batch_size, -1, -1)
@@ -406,17 +440,15 @@ def prepend_class_token(
 def patchify(images: torch.Tensor, patch_size: int) -> torch.Tensor:
     """Converts a batch of input images into patches.
 
-    Args:
-        images:
-            Images tensor with shape (batch_size, channels, height, width)
-        patch_size:
-            Patch size in pixels. Image width and height must be multiples of
-            the patch size.
+    Parameters
+    ----------
+    images : torch.Tensor. Images tensor with shape (batch_size, channels, height, width).
+    patch_size : int. Patch size in pixels; height and width must be multiples of patch_size.
 
-    Returns:
-        Patches tensor with shape (batch_size, num_patches, channels * patch_size ** 2)
-        where num_patches = image_width / patch_size * image_height / patch_size.
-
+    Returns
+    -------
+    torch.Tensor. Patches tensor with shape (batch_size, num_patches, channels * patch_size ** 2)
+    where num_patches = (height / patch_size) * (width / patch_size).
     """
     # N, C, H, W = (batch_size, channels, height, width)
     # Input shape is (batch_size, channels, height, width)
@@ -452,17 +484,15 @@ def patchify(images: torch.Tensor, patch_size: int) -> torch.Tensor:
 def patchify_stacked(images: torch.Tensor, patch_size: int) -> torch.Tensor:
     """Converts a batch of stacked input images into patches.
 
-    Args:
-        images:
-            Images tensor with shape (batch_size, num_imgs, channels, height, width)
-        patch_size:
-            Patch size in pixels. Image width and height must be multiples of
-            the patch size.
+    Parameters
+    ----------
+    images : torch.Tensor. Images tensor with shape (batch_size, num_imgs, channels, height, width).
+    patch_size : int. Patch size in pixels; height and width must be multiples of patch_size.
 
-    Returns:
-        Patches tensor with shape (batch_size, num_imgs, num_patches, channels * patch_size ** 2)
-        where num_patches = image_width / patch_size * image_height / patch_size.
-
+    Returns
+    -------
+    torch.Tensor. Patches tensor with shape (batch_size, num_imgs, num_patches, channels * patch_size ** 2)
+    where num_patches = (height / patch_size) * (width / patch_size).
     """
     # Extract shape, now including num_imgs
     batch_size, num_imgs, channels, height, width = images.shape
@@ -496,6 +526,17 @@ def patchify_stacked(images: torch.Tensor, patch_size: int) -> torch.Tensor:
 
 
 def unpatchify(patches: torch.Tensor, patch_size: int) -> torch.Tensor:
+    """Reconstructs images from a batch of patches.
+
+    Parameters
+    ----------
+    patches : torch.Tensor. Patches tensor with shape (batch_size, num_patches, channels * patch_size ** 2).
+    patch_size : int. Size of each patch in pixels.
+
+    Returns
+    -------
+    torch.Tensor. Reconstructed images with shape (batch_size, channels, height, width).
+    """
     n = patches.shape[0]
     c = patches.shape[2] / (patch_size * patch_size)
     assert c.is_integer()
@@ -525,13 +566,15 @@ def unpatchify_stacked(
 ) -> torch.Tensor:
     """Reconstructs images from their patches with an additional dimension for multiple images per batch.
 
-    Args:
-        patches: Tensor of shape (B, num_imgs * num_patches, channels * patch_size**2)
-        patch_size: Size of each patch in pixels.
-        num_imgs: Number of images stacked in each batch.
+    Parameters
+    ----------
+    patches : torch.Tensor. Patches tensor with shape (batch_size, num_imgs * num_patches, channels * patch_size ** 2).
+    patch_size : int. Size of each patch in pixels.
+    num_imgs : int. Number of images stacked in each batch.
 
-    Returns:
-        Tensor of reconstructed images with shape (B, num_imgs, C, H, W).
+    Returns
+    -------
+    torch.Tensor. Reconstructed images with shape (batch_size, num_imgs, channels, height, width).
     """
     n = patches.shape[0]
     # Calculate total number of patches per image
@@ -568,25 +611,17 @@ def random_token_mask(
 ) -> torch.Tensor:
     """Creates random token masks.
 
-    Args:
-        size:
-            Size of the token batch for which to generate masks.
-            Should be (batch_size, sequence_length).
-        mask_ratio:
-            Percentage of tokens to mask.
-        mask_class_token:
-            If False the class token is never masked. If True the class token
-            might be masked.
-        device:
-            Device on which to create the index masks.
+    Parameters
+    ----------
+    size : tuple[int, int]. (batch_size, sequence_length) of the token batch.
+    mask_ratio : float. Fraction of tokens to mask (optional).
+    mask_class_token : bool. If False the class token is never masked (optional).
+    device : torch.device | str | None. Device on which to create the index masks (optional).
 
-    Returns:
-        A (index_keep, index_mask) tuple where each index is a tensor.
-        index_keep contains the indices of the unmasked tokens and has shape
-        (batch_size, num_keep). index_mask contains the indices of the masked
-        tokens and has shape (batch_size, sequence_length - num_keep).
-        num_keep is equal to sequence_length * (1- mask_ratio).
-
+    Returns
+    -------
+    tuple[torch.Tensor, torch.Tensor]. A (index_keep, index_mask) tuple where index_keep has
+    shape (batch_size, num_keep) and index_mask has shape (batch_size, sequence_length - num_keep).
     """
     batch_size, sequence_length = size
     num_keep = int(sequence_length * (1 - mask_ratio))
@@ -612,24 +647,17 @@ def image_token_mask(
 ) -> torch.Tensor:
     """Creates token mask to mask complete images.
 
-    Args:
-        size:
-            Size of the token batch for which to generate masks.
-            Should be (batch_size, sequence_length).
-        mask_images:
-            Number of images to mask.
-        num_images:
-            Number of images in the sequence.
-        device:
-            Device on which to create the index masks.
+    Parameters
+    ----------
+    size : tuple[int, int]. (batch_size, sequence_length) of the token batch.
+    mask_images : int. Number of complete images to mask (optional).
+    num_images : int. Total number of images in the sequence (optional).
+    device : torch.device | str | None. Device on which to create the index masks (optional).
 
-    Returns:
-        A (index_keep, index_mask) tuple where each index is a tensor.
-        index_keep contains the indices of the unmasked tokens and has shape
-        (batch_size, num_keep). index_mask contains the indices of the masked
-        tokens and has shape (batch_size, sequence_length - num_keep).
-        num_keep is equal to sequence_length * (1- mask_ratio).
-
+    Returns
+    -------
+    tuple[torch.Tensor, torch.Tensor]. A (index_keep, index_mask) tuple where index_keep has
+    shape (batch_size, num_keep) and index_mask has shape (batch_size, sequence_length - num_keep).
     """
     batch_size, sequence_length = size
     # Number of total image tokens
@@ -672,23 +700,21 @@ def nearest_neighbors(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Finds the nearest neighbors of the maps in input_maps in candidate_maps.
 
-    Args:
-        input_maps:
-            A tensor of maps for which to find nearest neighbors.
-            It has size: [batch_size, input_map_size, feature_dimension]
-        candidate_maps:
-            A tensor of maps to search for nearest neighbors.
-            It has size: [batch_size, candidate_map_size, feature_dimension]
-        distances:
-            A tensor of distances between the maps in input_maps and candidate_maps.
-            It has size: [batch_size, input_map_size, candidate_map_size]
-        num_matches:
-            Number of nearest neighbors to return. If num_matches is None or -1,
-            all the maps in candidate_maps are considered.
+    Parameters
+    ----------
+    input_maps : torch.Tensor. Maps for which to find nearest neighbors,
+        with shape (batch_size, input_map_size, feature_dimension).
+    candidate_maps : torch.Tensor. Maps to search for nearest neighbors,
+        with shape (batch_size, candidate_map_size, feature_dimension).
+    distances : torch.Tensor. Pairwise distances between input and candidate maps,
+        with shape (batch_size, input_map_size, candidate_map_size).
+    num_matches : int. Number of nearest neighbors to return; if None or -1,
+        all candidate maps are used.
 
-    Returns:
-        A tuple of tensors, containing the nearest neighbors in input_maps and candidate_maps.
-        They both have size: [batch_size, input_map_size, feature_dimension]
+    Returns
+    -------
+    tuple[torch.Tensor, torch.Tensor]. A pair (filtered_input_maps, filtered_candidate_maps),
+    each with shape (batch_size, num_matches, feature_dimension).
     """
 
     if num_matches is None or num_matches == -1 or num_matches > input_maps.size(1):
@@ -731,16 +757,15 @@ def get_weight_decay_parameters(
 ) -> tuple[list[Parameter], list[Parameter]]:
     """Returns all parameters of the modules that should be decayed and not decayed.
 
-    Args:
-        modules:
-            List of modules to get the parameters from.
-        no_batch_norm:
-            If True, batch norm parameters are decayed.
-        no_bias:
-            If True, bias parameters are decayed.
+    Parameters
+    ----------
+    modules : Iterable[Module]. Modules from which to collect parameters.
+    decay_batch_norm : bool. If True, batch norm parameters are weight-decayed (optional).
+    decay_bias : bool. If True, bias parameters are weight-decayed (optional).
 
-    Returns:
-        (params, params_no_weight_decay) tuple.
+    Returns
+    -------
+    tuple[list[Parameter], list[Parameter]]. A (params, params_no_weight_decay) tuple.
     """
     params = []
     params_no_weight_decay = []

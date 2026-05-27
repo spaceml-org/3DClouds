@@ -34,6 +34,28 @@ class VisionTransformer(pl.LightningModule):
         norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
         conv_stem_configs: list[ConvStemConfig] | None = None,
     ):
+        """ Initialize VisionTransformer.
+
+            Parameters
+            ----------
+            image_size : int. Input image size; must be divisible by patch_size.
+            patch_size : int. Size of each image patch in pixels.
+            num_layers : int. Number of transformer encoder blocks.
+            num_heads : int. Number of attention heads per block.
+            hidden_dim : int. Dimension of the token embeddings.
+            mlp_dim : int. Dimension of the MLP inside each transformer block.
+            dropout : float. Dropout rate applied after the MLP (optional).
+            attention_dropout : float. Dropout rate applied after attention (optional).
+            num_classes : int. Number of output classes (optional).
+            num_channels : int. Number of input image channels (optional).
+            representation_size : int | None. If set, adds a pre-logits linear layer of this size (optional).
+            norm_layer : Callable. Callable that returns a normalization layer (optional).
+            conv_stem_configs : list[ConvStemConfig] | None. If set, replaces the patch projection with a convolutional stem (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         _log_api_usage_once(self)
         torch._assert(
@@ -148,6 +170,16 @@ class VisionTransformer(pl.LightningModule):
             nn.init.zeros_(self.heads.head.bias)
 
     def _process_input(self, x: torch.Tensor) -> torch.Tensor:
+        """ Project and reshape an input image into patch token sequences.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input image with shape (batch_size, channels, height, width).
+
+            Returns
+            -------
+            torch.Tensor. Token sequence with shape (batch_size, num_patches, hidden_dim).
+        """
         n, c, h, w = x.shape
         p = self.patch_size
         torch._assert(
@@ -175,6 +207,16 @@ class VisionTransformer(pl.LightningModule):
         return x
 
     def forward(self, x: torch.Tensor):
+        """ Run a forward pass through the VisionTransformer.
+
+            Parameters
+            ----------
+            x : torch.Tensor. Input image with shape (batch_size, channels, image_size, image_size).
+
+            Returns
+            -------
+            torch.Tensor. Class logits with shape (batch_size, num_classes).
+        """
         # Reshape and permute the input tensor
         x = self._process_input(x)
         n = x.shape[0]
@@ -203,6 +245,23 @@ def _vision_transformer(
     progress: bool,
     **kwargs: Any,
 ) -> VisionTransformer:
+    """ Build a VisionTransformer model with optional pretrained weights.
+
+        Parameters
+        ----------
+        patch_size : int. Size of each image patch in pixels.
+        num_layers : int. Number of transformer encoder blocks.
+        num_heads : int. Number of attention heads per block.
+        hidden_dim : int. Dimension of the token embeddings.
+        mlp_dim : int. Dimension of the MLP inside each transformer block.
+        weights : WeightsEnum | None. Pretrained weights to load (optional).
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Constructed model instance.
+    """
     if weights is not None:
         _ovewrite_named_param(kwargs, "num_classes", len(weights.meta["categories"]))
         assert weights.meta["min_size"][0] == weights.meta["min_size"][1]
@@ -228,9 +287,16 @@ def _vision_transformer(
 
 
 def vit_t_sar_4(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
-    """
-    Constructs a vit_b_32 architecture from
-    `An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>`_.
+    """ Construct a tiny ViT with patch size 4 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Tiny ViT (patch_size=4, 12 layers, 3 heads, hidden_dim=192).
     """
 
     return _vision_transformer(
@@ -246,6 +312,17 @@ def vit_t_sar_4(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_t_sar_8(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a tiny ViT with patch size 8 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Tiny ViT (patch_size=8, 12 layers, 3 heads, hidden_dim=192).
+    """
     return _vision_transformer(
         patch_size=8,
         num_layers=12,
@@ -259,6 +336,17 @@ def vit_t_sar_8(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_t_sar_16(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a tiny ViT with patch size 16 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Tiny ViT (patch_size=16, 12 layers, 3 heads, hidden_dim=192).
+    """
     return _vision_transformer(
         patch_size=16,
         num_layers=12,
@@ -272,6 +360,17 @@ def vit_t_sar_16(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_t_sar_32(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a tiny ViT with patch size 32 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Tiny ViT (patch_size=32, 12 layers, 3 heads, hidden_dim=192).
+    """
     return _vision_transformer(
         patch_size=32,
         num_layers=12,
@@ -285,6 +384,17 @@ def vit_t_sar_32(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_s_sar_4(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a small ViT with patch size 4 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Small ViT (patch_size=4, 12 layers, 6 heads, hidden_dim=384).
+    """
     return _vision_transformer(
         patch_size=4,
         num_layers=12,
@@ -298,6 +408,17 @@ def vit_s_sar_4(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_s_sar_8(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a small ViT with patch size 8 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Small ViT (patch_size=8, 12 layers, 6 heads, hidden_dim=384).
+    """
     return _vision_transformer(
         patch_size=8,
         num_layers=12,
@@ -311,6 +432,17 @@ def vit_s_sar_8(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_s_sar_16(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a small ViT with patch size 16 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Small ViT (patch_size=16, 12 layers, 6 heads, hidden_dim=384).
+    """
     return _vision_transformer(
         patch_size=16,
         num_layers=12,
@@ -324,6 +456,17 @@ def vit_s_sar_16(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_s_sar_32(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a small ViT with patch size 32 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Small ViT (patch_size=32, 12 layers, 6 heads, hidden_dim=384).
+    """
     return _vision_transformer(
         patch_size=32,
         num_layers=12,
@@ -337,6 +480,17 @@ def vit_s_sar_32(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_b_sar_4(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a base ViT with patch size 4 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Base ViT (patch_size=4, 12 layers, 12 heads, hidden_dim=768).
+    """
     return _vision_transformer(
         patch_size=4,
         num_layers=12,
@@ -350,6 +504,17 @@ def vit_b_sar_4(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_b_sar_8(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a base ViT with patch size 8 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Base ViT (patch_size=8, 12 layers, 12 heads, hidden_dim=768).
+    """
     return _vision_transformer(
         patch_size=8,
         num_layers=12,
@@ -363,6 +528,17 @@ def vit_b_sar_8(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_b_sar_16(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a base ViT with patch size 16 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Base ViT (patch_size=16, 12 layers, 12 heads, hidden_dim=768).
+    """
     return _vision_transformer(
         patch_size=16,
         num_layers=12,
@@ -376,6 +552,17 @@ def vit_b_sar_16(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_b_sar_32(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a base ViT with patch size 32 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Base ViT (patch_size=32, 12 layers, 12 heads, hidden_dim=768).
+    """
     return _vision_transformer(
         patch_size=32,
         num_layers=12,
@@ -389,6 +576,17 @@ def vit_b_sar_32(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
 
 
 def vit_s_sar_4(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
+    """ Construct a small ViT with patch size 4 for SAR imagery.
+
+        Parameters
+        ----------
+        progress : bool. If True, displays a progress bar when downloading weights (optional).
+        **kwargs : Any. Additional arguments forwarded to VisionTransformer.
+
+        Returns
+        -------
+        VisionTransformer. Small ViT (patch_size=4, 12 layers, 6 heads, hidden_dim=384).
+    """
     return _vision_transformer(
         patch_size=4,
         num_layers=12,

@@ -14,12 +14,26 @@ from src.datamodules.msg_dataloader import MSGDataModule
 
 
 class OneSatellitePerBatchDataLoader:
+    """ Iterator that samples one batch from a randomly selected satellite dataloader per step. """
+
     def __init__(
         self,
         sat_dataloaders: dict,
         satellites: list[str],
         use_weights: bool = False,
     ):
+        """ Initialize OneSatellitePerBatchDataLoader.
+
+            Parameters
+            ----------
+            sat_dataloaders : dict. Mapping from satellite name to its DataLoader.
+            satellites : list[str]. List of satellite names to sample from.
+            use_weights : bool. If True, samples satellites proportionally to their dataset length (optional).
+
+            Returns
+            -------
+            None.
+        """
         self.sat_dataloaders = sat_dataloaders
         self.satellites = satellites
         self.iters = {sat: iter(dl) for sat, dl in sat_dataloaders.items()}
@@ -28,9 +42,16 @@ class OneSatellitePerBatchDataLoader:
         self.weights = lengths if use_weights else None
 
     def __iter__(self):
+        """ Return the iterator object itself. """
         return self
 
     def __next__(self):
+        """ Return the next batch from a randomly chosen satellite dataloader.
+
+            Returns
+            -------
+            batch. Next batch from the selected satellite dataloader.
+        """
         sat = random.choices(self.satellites, weights=self.weights)[0]
 
         try:
@@ -42,24 +63,19 @@ class OneSatellitePerBatchDataLoader:
             self.iters[sat] = iter(self.sat_dataloaders[sat])
             return next(self.iters[sat])
 
-        # NOTE if restarting iterator is unacceptable, this option should work:
-        # if satellites is None:
-        #     sat = random.choice(self.satellites)
-        # elif satellites == []:
-        #     raise StopIteration("No more satellites to iterate over")
-        # else:
-        #     sat = random.choice(satellites)
-        # try:
-        #     return next(self.iters[sat])
-        # except StopIteration:
-        #     new_satellites = [s for s in self.satellites if s != sat]
-        #     return self.__next__(satellites=new_satellites)
-
     def __len__(self):
+        """ Return the total combined length of all satellite dataloaders.
+
+            Returns
+            -------
+            int. Sum of lengths of all satellite dataloaders.
+        """
         return self.length
 
 
 class MultiDataModule(LightningDataModule):
+    """ LightningDataModule combining MSG, GOES, and Himawari satellite data for multi-source training. """
+
     def __init__(
         self,
         data_dir_dict: dict[str, str],
@@ -78,6 +94,30 @@ class MultiDataModule(LightningDataModule):
         center_crop: bool = False,  # If True, will crop to the center of the image
         radius: int = 0,  # Radius for cropping, if center_crop is True
     ):
+        """ Initialize MultiDataModule.
+
+            Parameters
+            ----------
+            data_dir_dict : dict[str, str]. Mapping from satellite name to its data directory path.
+            splits_dict : dict. Dictionary specifying train/test/val split criteria (optional).
+            satellites : list[str]. List of satellite names to include; must match data_dir_dict keys (optional).
+            transforms_dict : dict[str, Callable] | None. Per-satellite transform callables (optional).
+            ext : str. File extension to search for in data directories (optional).
+            batch_size : int. Number of samples per batch (optional).
+            num_workers : int. Number of DataLoader worker processes (optional).
+            pin_memory : bool. If True, pins tensors to memory for faster GPU transfer (optional).
+            prefetch_factor : int. Number of batches to prefetch per worker (optional).
+            return_overpass_mask : bool. If True, returns the CloudSat overpass mask (optional).
+            load_zenith : bool. If True, loads zenith angle data (optional).
+            load_solar : bool. If True, loads solar angle data (optional).
+            patch_size : list. Crop size as [H, W]; pass a dict for per-satellite sizes (optional).
+            center_crop : bool. If True, crops to the center of the image (optional).
+            radius : int. Radius in pixels used when center_crop is True (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.data_dir_dict = data_dir_dict
         self.satellites = satellites
@@ -134,16 +174,34 @@ class MultiDataModule(LightningDataModule):
         }
 
     def train_dataloader(self):
+        """ Return the combined training dataloader across all satellites.
+
+            Returns
+            -------
+            OneSatellitePerBatchDataLoader. Training dataloader sampling one satellite per batch.
+        """
         return OneSatellitePerBatchDataLoader(
             sat_dataloaders=self.train_dataloaders, satellites=self.satellites
         )
 
     def test_dataloader(self):
+        """ Return the combined test dataloader across all satellites.
+
+            Returns
+            -------
+            OneSatellitePerBatchDataLoader. Test dataloader sampling one satellite per batch.
+        """
         return OneSatellitePerBatchDataLoader(
             sat_dataloaders=self.test_dataloaders, satellites=self.satellites
         )
 
     def val_dataloader(self):
+        """ Return the combined validation dataloader across all satellites.
+
+            Returns
+            -------
+            OneSatellitePerBatchDataLoader. Validation dataloader sampling one satellite per batch.
+        """
         return OneSatellitePerBatchDataLoader(
             sat_dataloaders=self.val_dataloaders, satellites=self.satellites
         )

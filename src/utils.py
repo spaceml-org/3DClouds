@@ -31,6 +31,16 @@ dotenv.load_dotenv()
 
 
 def get_activation_fn(activation_str):
+    """ Return an activation function callable by name.
+
+        Parameters
+        ----------
+        activation_str : str. Name of the activation function (e.g. "relu", "elu", "linear", "leaky_relu").
+
+        Returns
+        -------
+        callable. The corresponding PyTorch activation function.
+    """
     if activation_str == "relu":
         return F.relu
     elif activation_str == "elu":
@@ -45,7 +55,16 @@ def get_activation_fn(activation_str):
 
 def find_hydra_run_path(outputs_dir, wandb_runid):
     """
-    find the hydra run parh that contains the wandb runid
+    Find the hydra run path that contains the given wandb run ID.
+
+    Parameters
+    ----------
+    outputs_dir : str. Root directory of hydra outputs.
+    wandb_runid : str. Wandb run ID to search for.
+
+    Returns
+    -------
+    str. Path to the hydra run directory.
     """
 
     files = glob(f"**/*{wandb_runid}*", root_dir=outputs_dir, recursive=True)
@@ -68,12 +87,20 @@ def load_ckpt_from_hydra_run(
     type="best",
 ) -> pl.LightningModule:
     """
-    loads a checkpoint model from a run's output hydra log
-    hydra_run_path: the file path to the hydra run
-    loading_from_state_dict: if True, load model using state_dict, otherwise use PyTorch Lightning checkpoint
-    config: pass config if already loaded
-    model: pass model if already instantiated
-    returns: a pytorch lighting module
+    Load a checkpoint model from a run's hydra output log.
+
+    Parameters
+    ----------
+    hydra_run_path : str. File path to the hydra run.
+    loading_from_state_dict : bool. If True, load model using state_dict, otherwise use PyTorch Lightning checkpoint.
+    enable_loading_weights : bool. If False, model is initialized with random weights.
+    model : pl.LightningModule or None. Pre-instantiated model (optional).
+    config : OmegaConf or None. Pre-loaded config (optional).
+    type : str. Criterion for selecting checkpoint ("best" or "last").
+
+    Returns
+    -------
+    pl.LightningModule. The loaded PyTorch Lightning module.
     """
 
     # load config
@@ -144,17 +171,24 @@ def load_ckpt_from_hydra_run(
 
 
 def print_checksum_of_model(model):
+    """ Compute and return the sum of absolute parameter values as a checksum. """
     return sum(torch.abs(p).sum() for p in model.parameters()).detach().cpu().numpy()
 
 
 def load_dataloader_from_hydra_run(
     hydra_run_path: str, path_replace=None
 ):  # -> pl.LightningDataModule:
-    """from lightning.pytorch import LightningDataModule
-    loads a dataloader from a run's output hydra log
-    hydra_run_path: the file path to the hydra run
-    path_replace: a dict with strings to replace in split file
-    returns: a pytorch lighting dataloader
+    """
+    Load a dataloader from a run's hydra output log.
+
+    Parameters
+    ----------
+    hydra_run_path : str. File path to the hydra run.
+    path_replace : dict or None. Dictionary of string replacements to apply to the split file path (optional).
+
+    Returns
+    -------
+    pl.LightningDataModule. The instantiated PyTorch Lightning dataloader.
     """
     # load config
     config_file = f"{hydra_run_path}/.hydra/config.yaml"
@@ -176,7 +210,15 @@ def load_dataloader_from_hydra_run(
 
 def check_file_exists(file: str) -> bool:
     """
-    checks if a file exists, works for local files and files in a bucket
+    Check if a file exists, works for local files and files in a bucket.
+
+    Parameters
+    ----------
+    file : str. Path to the file (local path or gs:// URI).
+
+    Returns
+    -------
+    bool. True if the file exists, False otherwise.
     """
     if file.startswith("gs://"):
         return check_file_exists_in_bucket(file)
@@ -186,7 +228,15 @@ def check_file_exists(file: str) -> bool:
 
 def check_dir_exists(dir: str) -> bool:
     """
-    checks if a directory exists, works for local directories and directories in a bucket
+    Check if a directory exists, works for local directories and directories in a bucket.
+
+    Parameters
+    ----------
+    dir : str. Path to the directory (local path or gs:// URI).
+
+    Returns
+    -------
+    bool. True if the directory exists, False otherwise.
     """
     if dir.startswith("gs://"):
         return check_file_exists_in_bucket(dir)
@@ -196,18 +246,30 @@ def check_dir_exists(dir: str) -> bool:
 
 def check_file_exists_in_bucket(file: str) -> bool:
     """
-    checks if a file exists in a bucket
+    Check if a file exists in a GCS bucket.
+
+    Parameters
+    ----------
+    file : str. GCS URI (gs://) of the file to check.
+
+    Returns
+    -------
+    bool. True if the file exists, False otherwise.
     """
     return fs.exists(file)
 
 
 def list_all_files_in_bucket(bucket_name: str) -> list:
     """
-    returns a list of all files in a bucket
+    List all files in a GCS bucket.
 
-    bucket_name: name of the bucket
+    Parameters
+    ----------
+    bucket_name : str. Name of the GCS bucket.
 
-    returns: list of files in the bucket
+    Returns
+    -------
+    list. List of file paths in the bucket.
     """
     file_list = fs.ls(bucket_name)
     return file_list
@@ -215,7 +277,15 @@ def list_all_files_in_bucket(bucket_name: str) -> list:
 
 def list_all_files(dir: str) -> list:
     """
-    returns a list of all files in a directory, works for local directories and directories in a bucket
+    List all files in a directory, works for local directories and GCS buckets.
+
+    Parameters
+    ----------
+    dir : str. Path to the directory (local path or gs:// URI).
+
+    Returns
+    -------
+    list. List of file names or paths in the directory.
     """
     if dir.startswith("gs://"):
         return list_all_files_in_bucket(dir)
@@ -227,11 +297,13 @@ def get_dates_from_files(filenames: list[str]) -> list[datetime]:
     """
     Extract dates from a list of filenames.
 
-    Args:
-        filenames (List[str]): A list of filenames.
+    Parameters
+    ----------
+    filenames : list of str. List of filenames to parse dates from.
 
-    Returns:
-        List[str]: A list of dates extracted from the filenames.
+    Returns
+    -------
+    list of datetime. List of dates extracted from the filenames.
     """
     # NOTE: Using Cloudsat timestamps for paired patches
     # G16_s20190181545349_e20190181556115_CS_2019018145847_67783_merged_no_flxhr_patch_01
@@ -253,12 +325,14 @@ def get_split(files: list, split_dict: DictConfig) -> tuple[list, list]:
     """
     Split files based on dataset specification.
 
-    Args:
-        files (List): A list of files to be split.
-        split_dict (DictConfig): A dictionary-like object containing the dataset specification.
+    Parameters
+    ----------
+    files : list. List of file paths to be split.
+    split_dict : DictConfig. Dictionary-like object containing the dataset specification (years, months, days).
 
-    Returns:
-        Tuple[List, List]: A tuple containing two lists: the training set and the validation set.
+    Returns
+    -------
+    list. List of file paths matching the split specification.
     """
     # Extract dates from filenames
     filenames = [file.split("/")[-1] for file in files]
@@ -296,14 +370,16 @@ def get_split(files: list, split_dict: DictConfig) -> tuple[list, list]:
 
 def get_list_filenames(data_path: str = "./", ext: str = "*"):
     """
-    Loads a list of file names within a directory.
+    Load a list of file names within a directory.
 
-    Args:
-        data_path (str, optional): The directory path to search for files. Defaults to "./".
-        ext (str, optional): The file extension to filter the search. Defaults to "*".
+    Parameters
+    ----------
+    data_path : str. The directory path to search for files (optional).
+    ext : str. The file extension to filter the search (optional).
 
-    Returns:
-        List[str]: A sorted list of file names matching the given extension within the directory.
+    Returns
+    -------
+    list of str. A sorted list of file names matching the given extension within the directory.
     """
     pattern = f"*{ext}"
     path = pathlib.Path(data_path)
@@ -313,13 +389,15 @@ def get_list_filenames(data_path: str = "./", ext: str = "*"):
 
 
 def load_cloudsat_patch_tiff(patch_filepath: str) -> dict[str, np.ndarray]:
-    """Load cloudsat patch from tiff.
+    """Load CloudSat patch from a tiff file.
 
-    Args:
-        patch_filepath (str): The path to the tiff file.
+    Parameters
+    ----------
+    patch_filepath : str. The path to the tiff file.
 
-    Returns:
-        dict[str, np.ndarray]: A dictionary containing the data from the tiff file.
+    Returns
+    -------
+    dict of str to np.ndarray. A dictionary containing the data from the tiff file.
     """
     with rasterio.open(patch_filepath) as data:
         # Convert a string to a list
@@ -351,15 +429,17 @@ def load_msg_tif_file(
 ) -> dict[str, any]:
     """Load MSG tif file and export as a dictionary.
 
-    Args:
-        file (str): The path to the tif file.
-        load_wavelengths (bool, optional): Whether to load the wavelengths in the dictionary. Defaults to True.
-        load_coords (bool, optional): Whether to load the coordinates in the dictionary. Defaults to True.
-        load_cloudmask (bool, optional): Whether to load the cloud mask in the dictionary. Defaults to True.
-        load_overpass_mask (bool, optional): Whether to load the overpass mask in the dictionary. Defaults to True.
+    Parameters
+    ----------
+    file : str. The path to the tif file.
+    load_wavelengths : bool. Whether to load the wavelengths in the dictionary (optional).
+    load_coords : bool. Whether to load the coordinates in the dictionary (optional).
+    load_cloudmask : bool. Whether to load the cloud mask in the dictionary (optional).
+    load_overpass_mask : bool. Whether to load the overpass mask in the dictionary (optional).
 
-    Returns:
-        dict[str, any]: A dictionary containing the data from the tif file.
+    Returns
+    -------
+    dict of str to any. A dictionary containing the data from the tif file.
     """
     data_dict = {}
     # load dataset
@@ -451,7 +531,18 @@ def convert_old_state_dict_keys(state_dict):
 
 
 def get_checkpoint_path(hr, criterion_best_model="best"):
-    """Get the checkpoint path based on the criterion"""
+    """
+    Get the checkpoint path based on a selection criterion.
+
+    Parameters
+    ----------
+    hr : str. Path to the hydra run directory.
+    criterion_best_model : str. Criterion string used to select the best checkpoint (optional).
+
+    Returns
+    -------
+    str. Path to the selected checkpoint file.
+    """
     # look for checkpoint
     ckpts_paths = [f"{hr}/*{'/*'*trailings}/*ckpt" for trailings in range(6)]
     ckpts = functools.reduce(
@@ -483,7 +574,20 @@ def get_checkpoint_path(hr, criterion_best_model="best"):
 def load_model_with_fallback(
     hr, loading_from_state_dict, cfgdata, criterion_best_model="best"
 ):
-    """Load model with automatic fallback and state dict conversion"""
+    """
+    Load a model with automatic fallback and state dict key conversion.
+
+    Parameters
+    ----------
+    hr : str. Path to the hydra run directory.
+    loading_from_state_dict : bool. Whether to load from state dict.
+    cfgdata : OmegaConf. Hydra config object used to instantiate the model.
+    criterion_best_model : str. Criterion for selecting the best checkpoint (optional).
+
+    Returns
+    -------
+    pl.LightningModule. The loaded model.
+    """
     try:
         # Try the standard loading first
         m = load_ckpt_from_hydra_run(

@@ -13,6 +13,8 @@ from src.datamodules.multi_dataloader import OneSatellitePerBatchDataLoader
 
 
 class CloudSatMultiDataModule(LightningDataModule):
+    """ LightningDataModule combining CloudSat-paired MSG, GOES, and Himawari data modules. """
+
     def __init__(
         self,
         data_dir_dict: dict[str, str],
@@ -32,6 +34,31 @@ class CloudSatMultiDataModule(LightningDataModule):
         filter_clear_sky: dict | None = None,
         weight_satellites: bool = False
     ):
+        """ Initialize CloudSatMultiDataModule.
+
+            Parameters
+            ----------
+            data_dir_dict : dict[str, str]. Mapping from satellite name to its data directory path.
+            splits_dict : dict. Dictionary specifying train/test/val split criteria (optional).
+            satellites : list[str]. List of satellite keys; must match data_dir_dict keys (optional).
+            transforms_dict : dict[str, Callable] | None. Per-satellite transform callables (optional).
+            ext : str. File extension to search for in data directories (optional).
+            batch_size : int. Number of samples per batch (optional).
+            num_workers : int. Number of DataLoader worker processes (optional).
+            pin_memory : bool. If True, pins tensors to memory for faster GPU transfer (optional).
+            prefetch_factor : int. Number of batches to prefetch per worker (optional).
+            load_overpass_mask : bool. If True, loads the CloudSat overpass mask (optional).
+            load_zenith : bool. If True, loads zenith angle data (optional).
+            load_solar : bool. If True, loads solar angle data (optional).
+            cloudsat_variables : list[str]. CloudSat variable names to load (optional).
+            file_number : int. If set, randomly subsamples this many files from the full list (optional).
+            filter_clear_sky : dict | None. Parameters for clear-sky scene filtering; None disables filtering (optional).
+            weight_satellites : bool. If True, samples satellites proportionally to dataset size (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.data_dir_dict = data_dir_dict
         self.satellites = satellites
@@ -89,16 +116,34 @@ class CloudSatMultiDataModule(LightningDataModule):
         }
 
     def train_dataloader(self):
+        """ Return the combined training dataloader across all CloudSat-paired satellites.
+
+            Returns
+            -------
+            OneSatellitePerBatchDataLoader. Training dataloader sampling one satellite per batch.
+        """
         return OneSatellitePerBatchDataLoader(
             sat_dataloaders=self.train_dataloaders, satellites=self.satellites, use_weights=self.weight_satellites
         )
 
     def test_dataloader(self):
+        """ Return the combined test dataloader across all CloudSat-paired satellites.
+
+            Returns
+            -------
+            OneSatellitePerBatchDataLoader. Test dataloader sampling one satellite per batch.
+        """
         return OneSatellitePerBatchDataLoader(
             sat_dataloaders=self.test_dataloaders, satellites=self.satellites, use_weights=self.weight_satellites
         )
 
     def val_dataloader(self):
+        """ Return the combined validation dataloader across all CloudSat-paired satellites.
+
+            Returns
+            -------
+            OneSatellitePerBatchDataLoader. Validation dataloader sampling one satellite per batch.
+        """
         return OneSatellitePerBatchDataLoader(
             sat_dataloaders=self.val_dataloaders, satellites=self.satellites, use_weights=self.weight_satellites
         )

@@ -1,0 +1,83 @@
+dataloader:
+  _target_: src.datamodules.cloudsat_multi_dataloader.CloudSatMultiDataModule
+
+  # Path to the data
+  data_dir_dict:
+    goes_cloudsat: '/mnt/disks/data/2025-esl-3dclouds-extremes-datasets/fine-tuning-reprocessed/cloudsat-goes-paired/'
+    himawari_cloudsat: '/mnt/disks/data/2025-esl-3dclouds-extremes-datasets/fine-tuning-reprocessed/cloudsat-himawari-paired/'
+    msg_cloudsat: '/mnt/disks/data/2025-esl-3dclouds-extremes-datasets/fine-tuning-reprocessed/cloudsat-msg-paired/'
+  # splits_dict: NOTE: data splitting is now default handled in the datamodules
+
+  # Satellites to load
+  satellites: ["msg_cloudsat", "goes_cloudsat", "himawari_cloudsat"]
+
+  # Transforms to apply to the data
+  transforms_dict:
+    goes_cloudsat:
+      _target_: src.transforms.cloudsat_geo_transforms.CloudsatGEOTransform
+      cloudsat_variables: ['Radar_Reflectivity']
+      target_wavelengths: [
+            640.0,
+            810.0,
+            1640.0,
+            3920.0,
+            6250.0,
+            7350.0,
+            8700.0,
+            9660.0,
+            10800.0,
+            12000.0,
+            13400.0,
+        ]
+    himawari_cloudsat:
+      _target_: src.transforms.cloudsat_geo_transforms.CloudsatGEOTransform
+      cloudsat_variables: ['Radar_Reflectivity']
+      target_wavelengths: [
+            640.0,
+            810.0,
+            1640.0,
+            3920.0,
+            6250.0,
+            7350.0,
+            8700.0,
+            9660.0,
+            10800.0,
+            12000.0,
+            13400.0,
+        ]
+    msg_cloudsat:
+      _target_: src.transforms.cloudsat_geo_transforms.CloudsatGEOTransform
+      cloudsat_variables: ['Radar_Reflectivity']
+      target_wavelengths: [
+            640.0,
+            810.0,
+            1640.0,
+            3920.0,
+            6250.0,
+            7350.0,
+            8700.0,
+            9660.0,
+            10800.0,
+            12000.0,
+            13400.0,
+        ]
+
+  # Cloudsat variables
+  cloudsat_variables: ['Radar_Reflectivity']
+
+  # Whether to load satellite and viewing angles
+  load_solar: False
+  load_zenith: False
+
+  # Dataloader parameters
+  batch_size: 32
+  num_workers: 8
+
+  filter_clear_sky:
+    path: /data/2025-esl-3dclouds-extremes-datasets/fine-tuning-reprocessed/finetune_stats.csv
+    radar_cloud_frac: [">", 0.25]
+    bad_quality_columns: ["==", 0]
+    bad_pixels: ["==", 0]
+
+  # Number of files to load per satellite
+  # file_number: 19132 # NOTE: chose min of files in himawari for now

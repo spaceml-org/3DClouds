@@ -1,0 +1,38 @@
+flowchart TB
+  %% Fine-tuning flow for configs/baselines/unet
+  %% Standardized node format: Path / Call / Desc / Notes
+
+  A[Path: configs/baselines/unet/train.yaml<br/>Call: hydra composition for fine-tuning<br/>Desc: Loads fine-tuning options and checkpoint paths<br/>Notes: May override baseline defaults] --> B[Path: src/utils.py<br/>Call: load_ckpt_from_hydra_run<br/>Desc: Helper to locate pretrained checkpoint to warm-start fine-tuning<br/>Notes: Supports best or last selection heuristics]
+
+  B --> PRELOAD[Path: src/models/unet.py<br/>Call: load_pretrained_weights<br/>Desc: Load pretrained weights into model before fine-tuning<br/>Notes: Optionally resume optimizer state when resuming training]
+
+  PRELOAD --> C[Path: configs/baselines/unet/datamodule.yaml<br/>Call: dataloader configuration file<br/>Desc: Specifies datamodule and transforms for fine-tuning datasets<br/>Notes: May use different augmentations or sampling strategies]
+  C --> D[Path: src/datamodules/cloudsat_multi_dataloader.py<br/>Call: CloudSatMultiDataModule<br/>Desc: Builds dataloaders and satellite datamodules for fine-tuning<br/>Notes: Handles per-satellite splits and sampling]
+
+  D --> GEO_TRANS[Path: src/transforms/cloudsat_geo_transforms.py<br/>Call: CloudsatGEOTransform __init__<br/>Desc: Build transform pipeline for fine-tuning - normalization, cropping and stacking<br/>Notes: Can differ from pretraining transforms]
+
+  MCFG[Path: configs/baselines/unet/model.yaml<br/>Call: model configuration file<br/>Desc: Points to BruningUNet target and fine-tune hyperparameters<br/>Notes: May set frozen layers and LR multipliers] --> M_INIT[Path: src/models/unet.py<br/>Call: BruningUNet __init__<br/>Desc: Initialize model for fine-tuning and apply any freezing or warmstart actions<br/>Notes: Attach loss and logging hooks]
+
+  M_INIT --> TRAINER[Path: train.py<br/>Call: pl Trainer construction<br/>Desc: Create Trainer configured for fine-tuning with callbacks and loggers<br/>Notes: Use lower LR and checkpoint strategy] --> FIT[Path: train.py<br/>Call: trainer fit invocation<br/>Desc: Run fine-tuning loop with warm-started model and datamodule<br/>Notes: Validate and checkpoint as configured]
+
+  FIT --> FT_STEP[Path: src/models/unet.py<br/>Call: BruningUNet training_step<br/>Desc: Handles one fine-tuning batch and logs metrics<br/>Notes: May freeze parts of the network initially]
+  FT_STEP --> OPT[Path: src/models/unet.py<br/>Call: configure_optimizers<br/>Desc: Create optimizer and scheduler for fine-tuning - often lower LR<br/>Notes: Adam or AdamW and scheduler settings per config]
+
+  FIT --> VEND[Path: src/models/unet.py<br/>Call: on_validation_epoch_end<br/>Desc: Prepare validation visualizations and artifacts<br/>Notes: Log artifacts to Wandb for analysis]
+  VEND --> V_PLOT[Path: src/validation_utils.py<br/>Call: plot_multi_profiles<br/>Desc: Generate diagnostic figures and metric summaries for reporting<br/>Notes: Compare pretrain and fine-tune results]
+
+  %% Styles
+  style A fill:#6FA8DC,stroke:#111,stroke-width:1px,color:#000
+  style B fill:#FFF1C1,stroke:#111,stroke-width:1px,color:#000
+  style PRELOAD fill:#B7A4FF,stroke:#111,stroke-width:1px,color:#000
+  style C fill:#9AD1A0,stroke:#111,stroke-width:1px,color:#000
+  style D fill:#9AD1A0,stroke:#111,stroke-width:1px,color:#000
+  style MCFG fill:#B7A4FF,stroke:#111,stroke-width:1px,color:#000
+  style M_INIT fill:#B7A4FF,stroke:#111,stroke-width:1px,color:#000
+  style TRAINER fill:#E9E9E9,stroke:#111,stroke-width:1px,color:#000
+  style FIT fill:#E9E9E9,stroke:#111,stroke-width:1px,color:#000
+  style FT_STEP fill:#FFE0B2,stroke:#111,stroke-width:1px,color:#000
+  style OPT fill:#BFD7FF,stroke:#111,stroke-width:1px,color:#000
+  style VEND fill:#BFD7FF,stroke:#111,stroke-width:1px,color:#000
+  style V_PLOT fill:#FFF2CC,stroke:#111,stroke-width:1px,color:#000
+

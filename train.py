@@ -55,6 +55,24 @@ torch.set_float32_matmul_precision("medium")
     config_name="train.yaml",
 )
 def main(config: DictConfig):
+    """ Set up and run model training, then evaluate on the test set.
+
+        Orchestrates the full training pipeline: seeding, W&B logging,
+        dataloader and model instantiation (from checkpoint or scratch),
+        callback/checkpoint setup, and Lightning Trainer execution.
+        After training completes, loads the best checkpoint and runs
+        the test loop.
+
+        Parameters
+        ----------
+        config : DictConfig. Hydra configuration object containing all
+                 training hyper-parameters, dataloader settings, W&B
+                 credentials, and trainer options.
+
+        Returns
+        -------
+        None.
+    """
     # ------- seeds -------
 
     # extract and set model and data seeds

@@ -23,6 +23,8 @@ from src.validation_utils import log_metrics_wandb, plot_multi_profiles
 
 
 class BruningUNet(pl.LightningModule):
+    """ U-Net Lightning module for satellite-to-CloudSat profile retrieval. """
+
     def __init__(
         self,
         input_dim=[11, 256, 256],
@@ -43,6 +45,32 @@ class BruningUNet(pl.LightningModule):
         sensei: bool | SenseiAutoencoder | None = None,
         sensei_embedding_size: int | None = None,
     ):
+        """ Initialize BruningUNet.
+
+            Parameters
+            ----------
+            input_dim : list. Input dimensions [channels, height, width] (optional).
+            dropout : float. Dropout rate applied within the network (optional).
+            start_filters : int. Number of filters in the first convolutional layer (optional).
+            height_bins : int. Number of vertical height bins for the output profile (optional).
+            depth : int. Depth (number of encoder/decoder levels) of the U-Net (optional).
+            lr : float. Initial learning rate for the Adam optimizer (optional).
+            min_cs : float. Minimum reflectivity value used for un-normalization (optional).
+            max_cs : float. Maximum reflectivity value used for un-normalization (optional).
+            mode : str. Architecture variant; one of 'ResU', 'ResNet2D', or 'ResNet3D' (optional).
+            weight_decay : float. L2 weight-decay regularization coefficient (optional).
+            random_plots : bool. If True, selects a random batch for visualization plots (optional).
+            num_val_batches : int. Number of validation batches used for plot selection (optional).
+            variable : str or list. Target variable name(s) to predict (optional).
+            loss_scaling : list or None. Per-variable loss weights; None means equal weights (optional).
+            loss : callable or None. Loss function; defaults to MSELoss when None (optional).
+            sensei : bool, SenseiAutoencoder, or None. Sensei autoencoder for encoding; True instantiates a new one (optional).
+            sensei_embedding_size : int or None. Embedding size when sensei=True (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.save_hyperparameters()
 
@@ -126,11 +154,32 @@ class BruningUNet(pl.LightningModule):
             )
 
     def forward_sensei(self, batch):
+        """ Forward pass using the Sensei-encoded input.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary containing 'data' and 'sensei_encoding' tensors.
+
+            Returns
+            -------
+            torch.Tensor. Network output tensor.
+        """
         return self.net(
             self.sensei.forward_encode(batch["data"], batch["sensei_encoding"])[0]
         )
 
     def forward(self, batch):
+        """ Forward pass through the U-Net backbone.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary containing the 'data' input tensor.
+
+            Returns
+            -------
+            torch.Tensor. Predicted profile tensor of shape [B, height_bins, H, W] or
+            [B, n_variable, height_bins, H, W] for multi-variable prediction.
+        """
         out = self.net(batch["data"])
         if self.mode.lower() in ["resu", "resnet2d"]:
             # out: [B, n_variable * height_bins, H, W]
@@ -143,6 +192,17 @@ class BruningUNet(pl.LightningModule):
         return out
 
     def training_step(self, batch, batch_idx):
+        """ Compute loss and log metrics for one training batch.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary with input data, CloudSat targets, and overpass mask.
+            batch_idx : int. Index of the current batch.
+
+            Returns
+            -------
+            torch.Tensor. Scalar weighted training loss.
+        """
         losses = []
         metrics = []
         cs_p = self.forward(batch)
@@ -333,6 +393,17 @@ class BruningUNet(pl.LightningModule):
         return torch.sum(torch.stack(losses) * self.loss_scaling)
 
     def validation_step(self, batch, batch_idx):
+        """ Compute loss and log metrics for one validation batch.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary with input data, CloudSat targets, and overpass mask.
+            batch_idx : int. Index of the current batch.
+
+            Returns
+            -------
+            torch.Tensor. Scalar weighted validation loss.
+        """
         if not self.random_plots:
             self.batch_idx = batch_idx
             self.plotting_batch = batch
@@ -478,6 +549,17 @@ class BruningUNet(pl.LightningModule):
         return total_loss
 
     def test_step(self, batch, batch_idx):
+        """ Compute loss and log metrics for one test batch.
+
+            Parameters
+            ----------
+            batch : dict. Batch dictionary with input data, CloudSat targets, and overpass mask.
+            batch_idx : int. Index of the current batch.
+
+            Returns
+            -------
+            torch.Tensor. Scalar weighted test loss.
+        """
         losses = []
         metrics = []
         cs_p = self.forward(batch)
@@ -617,6 +699,12 @@ class BruningUNet(pl.LightningModule):
         return total_loss
 
     def configure_optimizers(self):
+        """ Configure the Adam optimizer with a ReduceLROnPlateau scheduler.
+
+            Returns
+            -------
+            dict. Dictionary with 'optimizer' and 'lr_scheduler' keys for Lightning.
+        """
         optimizer = torch.optim.Adam(
             self.parameters(), lr=(self.learning_rate), weight_decay=self.weight_decay
         )
@@ -633,6 +721,7 @@ class BruningUNet(pl.LightningModule):
         }
 
     def on_validation_epoch_end(self):
+        """ Log profile visualization plots to WandB at the end of each validation epoch. """
         experiment = self.logger.experiment
         batch = self.plotting_batch
 

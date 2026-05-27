@@ -8,46 +8,95 @@ from src.models.losses import PowerSpectrumLoss, MaskedSSIMLoss, DiceBCEFromCont
 
 
 class PowerSpectrumMetric(nn.Module):
-    """
-    Computes the Power Spectrum loss as a metric (lower is better).
-    """
+    """ Power Spectrum metric (lower is better). """
+
     def __init__(self, mask=False):
+        """ Initialize PowerSpectrumMetric.
+
+            Parameters
+            ----------
+            mask : bool. Whether to apply masking in the underlying PowerSpectrumLoss (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.ps = PowerSpectrumLoss(coeff=1.0, mask=mask)  # coeff=1.0 for metric
 
     def forward(self, cs, cs_p, overpass_mask):
+        """ Compute the power spectrum metric.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth tensor.
+            cs_p : torch.Tensor. Predicted tensor.
+            overpass_mask : torch.Tensor. Overpass mask for profile extraction.
+
+            Returns
+            -------
+            torch.Tensor. Power spectrum loss value (lower is better).
+        """
         return self.ps(cs, cs_p, overpass_mask)
 
 
 class MaskedSSIMMetric(nn.Module):
-    """
-    Computes the Masked SSIM as a metric (higher is better).
-    """
+    """ Masked SSIM metric (higher is better). """
+
     def __init__(self, window_size=11, sigma=1.5, eps=1e-6):
+        """ Initialize MaskedSSIMMetric.
+
+            Parameters
+            ----------
+            window_size : int. Size of the Gaussian kernel (optional).
+            sigma : float. Standard deviation of the Gaussian kernel (optional).
+            eps : float. Small value to avoid division by zero (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.masked_ssim = MaskedSSIMLoss(window_size=window_size, sigma=sigma, mask=True, eps=eps)
 
     def forward(self, cs, cs_p, overpass_mask):
+        """ Compute the masked SSIM metric.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth tensor.
+            cs_p : torch.Tensor. Predicted tensor.
+            overpass_mask : torch.Tensor. Overpass mask for profile extraction.
+
+            Returns
+            -------
+            torch.Tensor. Mean SSIM over valid pixels (higher is better).
+        """
         # MaskedSSIMLoss returns a loss (1-SSIM), so invert it to get SSIM
         loss = self.masked_ssim(cs, cs_p, overpass_mask)
         return 1.0 - loss
 
 
 class SSIMMetric(nn.Module):
-    """
-    SSIMMetric: Computes SSIMLoss to be provided to wandb as a metric.
-    """
+    """ SSIM metric for comparing cloud profiles (higher is better). """
 
     def __init__(self):
+        """ Initialize SSIMMetric. """
         super().__init__()
         self.ssi = StructuralSimilarityIndexMeasure()
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, padded_length) (B, 90, 512) tensor
-            cs_p: (batch_size, height, width, length) (B, 90, 256, 256) tensor
-            overpass_mask: (batch_size, width, length) (B, 256, 256) tensor
+        """ Compute mean SSIM over extracted profiles.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, padded_length).
+            cs_p : torch.Tensor. Prediction of shape (B, H, W, L).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, W, L).
+
+            Returns
+            -------
+            torch.Tensor. Mean SSIM value across the batch.
         """
         cs, cs_p = get_profiles(cs, cs_p, overpass_mask)
         ssim_vals = []
@@ -60,15 +109,25 @@ class SSIMMetric(nn.Module):
 
 
 class PSNRMetric(nn.Module):
-    """
-    PSNRMetric: Computes PSNR to be provided to wandb as a metric.
-    """
+    """ PSNR metric for evaluating reconstruction quality (higher is better). """
 
     def __init__(self):
+        """ Initialize PSNRMetric. """
         super().__init__()
         self.pixel_max = 2  # Assuming the pixel values are normalized between -1 and 1
 
     def psnr(self, x_pred, targets):
+        """ Compute Peak Signal-to-Noise Ratio between prediction and target.
+
+            Parameters
+            ----------
+            x_pred : torch.Tensor. Predicted values.
+            targets : torch.Tensor. Ground truth values.
+
+            Returns
+            -------
+            float or torch.Tensor. PSNR value in dB; returns inf if MSE is zero.
+        """
         mse = torch.mean((targets - x_pred) ** 2)
         if mse == 0:
             return float("inf")
@@ -76,11 +135,17 @@ class PSNRMetric(nn.Module):
         return 20 * torch.log10(PIXEL_MAX / torch.sqrt(mse))
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, padded_length) (B, 90, 512) tensor
-            cs_p: (batch_size, height, width, length) (B, 90, 256, 256) tensor
-            overpass_mask: (batch_size, width, length) (B, 256, 256) tensor
+        """ Compute mean PSNR over extracted profiles.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, padded_length).
+            cs_p : torch.Tensor. Prediction of shape (B, H, W, L).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, W, L).
+
+            Returns
+            -------
+            torch.Tensor. Mean PSNR value across the batch.
         """
         cs, cs_p = get_profiles(cs, cs_p, overpass_mask)
         psnr_vals = []
@@ -93,11 +158,21 @@ class PSNRMetric(nn.Module):
 
 
 class DiceBCEFromContinuousMetric(nn.Module):
-    """
-    DiceBCEFromContinuousMetric: Computes the Dice and BCE loss as a metric.
-    """
+    """ Dice and BCE metric computed from continuous-valued predictions. """
 
     def __init__(self, threshold=None, lambda_dice=1.0, lambda_bce=1.0):
+        """ Initialize DiceBCEFromContinuousMetric.
+
+            Parameters
+            ----------
+            threshold : float or None. Binarisation threshold; uses per-patch minimum if None (optional).
+            lambda_dice : float. Scaling coefficient for the Dice term (optional).
+            lambda_bce : float. Scaling coefficient for the BCE term (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.dice_bce = DiceBCEFromContinuous(
             threshold=threshold,
@@ -106,30 +181,50 @@ class DiceBCEFromContinuousMetric(nn.Module):
         )
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, width, length) (4, 90, 128, 128) tensor
-            cs_p: (batch_size, n_channels, height, width) tensor
-            overpass_mask: (batch_size, height, width) tensor
+        """ Compute combined Dice and BCE metric.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, W, L).
+            cs_p : torch.Tensor. Prediction of shape (B, C, H, W).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Combined Dice and BCE loss value.
         """
         return self.dice_bce(cs, cs_p, overpass_mask)
 
 
 class MaskedMSEMetric(nn.Module):
-    """
-    MaskedMSEMetric: Computes the masked MSE loss as a metric.
-    """
+    """ Masked MSE metric computed only over valid (cloud or clear-sky) pixels. """
 
     def __init__(self, clouds=True):
+        """ Initialize MaskedMSEMetric.
+
+            Parameters
+            ----------
+            clouds : bool. If True, evaluates on cloud pixels; if False, on clear-sky pixels (optional).
+
+            Returns
+            -------
+            None.
+        """
         super().__init__()
         self.masked_mse = MaskedMSELoss(clouds=clouds)
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, width, length) (4, 90, 128, 128) tensor
-            cs_p: (batch_size, n_channels, height, width) tensor
-            overpass_mask: (batch_size, height, width) tensor
+        """ Compute masked MSE metric.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, W, L).
+            cs_p : torch.Tensor. Prediction of shape (B, C, H, W).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Mean MSE over valid pixels.
         """
         return self.masked_mse(cs, cs_p, overpass_mask)
 
@@ -141,21 +236,25 @@ class MaskedMSEMetric(nn.Module):
 
 # TODO: Check and update this
 class PerceptualLossMetric(nn.Module):
-    """
-    Perceptual Loss: The Learned Perceptual Image Patch Similarity (LPIPS_)
-    calculates perceptual similarity between two images.
-    """
+    """ LPIPS perceptual similarity metric between cloud profile images. """
 
     def __init__(self):
+        """ Initialize PerceptualLossMetric. """
         super().__init__()
         self.lpips = LearnedPerceptualImagePatchSimilarity()  # choose net_type
 
     def forward(self, cs, cs_p, overpass_mask):
-        """
-        Input:
-            cs: (batch_size, height, width, length) (4, 90, 128, 128) tensor
-            cs_p: (batch_size, n_channels, height, width) tensor
-            overpass_mask: (batch_size, height, width) tensor
+        """ Compute mean LPIPS perceptual similarity over the batch.
+
+            Parameters
+            ----------
+            cs : torch.Tensor. Ground truth of shape (B, H, W, L).
+            cs_p : torch.Tensor. Prediction of shape (B, C, H, W).
+            overpass_mask : torch.Tensor. Overpass mask of shape (B, H, W).
+
+            Returns
+            -------
+            torch.Tensor. Mean LPIPS score across the batch.
         """
 
         lpips_vals = []

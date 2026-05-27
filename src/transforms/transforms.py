@@ -34,15 +34,22 @@ class SelectBandsTransform:
 		target_bands,
 		keys=["data", "wavelengths", "sensor_info", "sensei_encoding"],
 	):
-		"""
-		Args:
-			target_bands (list): List of bands to select
-			key (str): Key in dictionary to apply transformation
+		""" Initialize SelectBandsTransform.
+
+		Parameters
+		----------
+		target_bands : list. List of bands to select.
+		keys : list. Keys in dictionary to apply transformation.
+
+		Returns
+		-------
+		None.
 		"""
 		self.target_bands = target_bands
 		self.keys = keys
 
 	def __call__(self, data_dict, **kwargs):
+		""" Apply band selection to the data dictionary. """
 		source_bands = data_dict["band_names"]
 		# Get indexes of bands to select
 		indexes = [source_bands.index(band) for band in self.target_bands]
@@ -78,15 +85,22 @@ class SelectWavelengthsTransform:
 		wavelengths,
 		keys=["data", "wavelengths", "sensor_info", "sensei_encoding"],
 	):
-		"""
-		Args:
-			wavelengths (list): List of wavelengths to select closest matching band for
-			key (str): Key in dictionary to apply transformation
+		""" Initialize SelectWavelengthsTransform.
+
+		Parameters
+		----------
+		wavelengths : list. List of wavelengths to select closest matching band for.
+		keys : list. Keys in dictionary to apply transformation.
+
+		Returns
+		-------
+		None.
 		"""
 		self.wavelengths = wavelengths
 		self.keys = keys
 
 	def __call__(self, data_dict, **kwargs):
+		""" Apply wavelength-based band selection to the data dictionary. """
 		source_wavelengths = data_dict["wavelengths"]
 
 		# match wavelengths to bands
@@ -129,15 +143,22 @@ class SelectVariablesTransform:
 	"""
 
 	def __init__(self, vars, key="data"):
-		"""
-		Args:
-			vars (list): List of variables to select
-			key (str): Key in dictionary to apply transformation
+		""" Initialize SelectVariablesTransform.
+
+		Parameters
+		----------
+		vars : list. List of variable names to select.
+		key : str. Key in the dictionary to apply the transformation.
+
+		Returns
+		-------
+		None.
 		"""
 		self.vars = vars
 		self.key = key
 
 	def __call__(self, data_dict, **kwargs):
+		""" Apply variable selection and stacking to the data dictionary. """
 		# Get data
 		data = data_dict[self.key]
 		# Expects data to be a dictionary
@@ -159,10 +180,17 @@ class BandOrderTransform:
 	"""
 
 	def __init__(self, target_order, key="data", band_info_key="wavelengths"):
-		"""
-		Args:
-			target_order (list): Order of bands
-			key (str): Key in dictionary to apply transformation
+		""" Initialize BandOrderTransform.
+
+		Parameters
+		----------
+		target_order : list. Desired order of bands.
+		key : str. Key in the dictionary to apply the transformation.
+		band_info_key : str. Key identifying band info (either "wavelengths" or "band_names").
+
+		Returns
+		-------
+		None.
 		"""
 		self.target_order = target_order
 		self.key = key
@@ -173,6 +201,7 @@ class BandOrderTransform:
 			)
 
 	def __call__(self, data_dict, **kwargs):
+		""" Apply band reordering to the data dictionary. """
 		source_order = data_dict[self.band_info_key]
 		assert len(source_order) == len(
 			self.target_order
@@ -212,11 +241,21 @@ class NanMaskTransform:
 	"""
 
 	def __init__(self, key="data"):
+		""" Initialize NanMaskTransform.
+
+		Parameters
+		----------
+		key : str. Key in the dictionary to apply the transformation.
+
+		Returns
+		-------
+		None.
+		"""
 		self.key = key
 
 	def __call__(self, data_dict, **kwargs):
+		""" Compute and store a NaN mask in the data dictionary. """
 		data = data_dict[self.key]
-		# Check if any band contains NaN values
 		mask = np.isnan(data).any(axis=0)
 		mask = mask.astype(int)
 		# Update dictionary
@@ -232,13 +271,23 @@ class NanDictTransform:
 	"""
 
 	def __init__(self, key="data", fill_value=0):
+		""" Initialize NanDictTransform.
+
+		Parameters
+		----------
+		key : str. Key in the dictionary to apply the transformation.
+		fill_value : float. Value used to replace NaNs.
+
+		Returns
+		-------
+		None.
+		"""
 		self.key = key
 		self.fill_value = fill_value
 
 	def __call__(self, data_dict, **kwargs):
+		""" Replace NaN values in the data dictionary with fill_value. """
 		data = data_dict[self.key]
-		# Replace NaN values
-		data = np.nan_to_num(data, nan=self.fill_value)
 		# Update dictionary
 		data_dict[self.key] = data
 		return data_dict
@@ -250,9 +299,20 @@ class NanDictPatchMeanTransform:
 	"""
 
 	def __init__(self, key="data"):
+		""" Initialize NanDictPatchMeanTransform.
+
+		Parameters
+		----------
+		key : str. Key in the dictionary to apply the transformation.
+
+		Returns
+		-------
+		None.
+		"""
 		self.key = key
 
 	def __call__(self, data_dict, **kwargs):
+		""" Replace NaN values with per-channel patch mean. """
 		data = data_dict[self.key]
 		# Replace NaN values
 		for i in range(data.shape[0]):
@@ -268,11 +328,24 @@ class ReplaceValueTransform:
 	"""
 
 	def __init__(self, value, new_value, key="data"):
+		""" Initialize ReplaceValueTransform.
+
+		Parameters
+		----------
+		value : float. The value to search for and replace.
+		new_value : float. The replacement value.
+		key : str. Key in the dictionary to apply the transformation.
+
+		Returns
+		-------
+		None.
+		"""
 		self.value = value
 		self.new_value = new_value
 		self.key = key
 
 	def __call__(self, data_dict, **kwargs):
+		""" Replace occurrences of value with new_value in the data dictionary. """
 		data = data_dict[self.key]
 		# Replace value
 		data[data == self.value] = self.new_value
@@ -287,11 +360,24 @@ class CoordNormTransform:
 	"""
 
 	def __init__(self, key="coords", lat_range=[-90, 90], lon_range=[-180, 180]):
+		""" Initialize CoordNormTransform.
+
+		Parameters
+		----------
+		key : str. Key in the dictionary where coordinates are stored.
+		lat_range : list. [min, max] range for latitude normalization.
+		lon_range : list. [min, max] range for longitude normalization.
+
+		Returns
+		-------
+		None.
+		"""
 		self.key = key
 		self.lat_range = lat_range
 		self.lon_range = lon_range
 
 	def __call__(self, data_dict, **kwargs):
+		""" Normalize latitude and longitude coordinates to [-1, 1]. """
 		lats, lons = data_dict["coords"]
 
 		# Normalize latitude and longitude to range [-1, 1]
@@ -314,16 +400,24 @@ class MeanStdNormaliseTransform:
 	"""
 
 	def __init__(self, band_info_path, key="data", band_info_key="wavelengths"):
-		"""
-		Args:
-			band_infi (dict): Dictionary containing mean and std for each band
-			key (str): Key in dictionary to apply transformation
+		""" Initialize MeanStdNormaliseTransform.
+
+		Parameters
+		----------
+		band_info_path : str. Path to JSON file containing mean and std for each band.
+		key : str. Key in the dictionary to apply the transformation.
+		band_info_key : str. Key identifying band info (wavelengths or band names).
+
+		Returns
+		-------
+		None.
 		"""
 		self.band_info_path = band_info_path
 		self.key = key
 		self.band_info_key = band_info_key
 
 	def __call__(self, data_dict, **kwargs):
+		""" Normalise data bands using mean and standard deviation. """
 		# get data to be normalised
 		data = data_dict[self.key]
 		with open(os.path.join(os.path.expanduser("~"), self.band_info_path)) as f:
@@ -359,11 +453,24 @@ class StackDictTransformSimple:
 		stack_key="data",
 		axis=0,
 	):
+		""" Initialize StackDictTransformSimple.
+
+		Parameters
+		----------
+		keys : list. Keys to stack from the data dictionary.
+		stack_key : str. Key under which the stacked result is stored.
+		axis : int. Axis along which to concatenate arrays.
+
+		Returns
+		-------
+		None.
+		"""
 		self.keys = keys
 		self.stack_key = stack_key
 		self.axis = axis
 
 	def __call__(self, data_dict, **kwargs):
+		""" Stack selected arrays from the data dictionary into a single array. """
 		# Select data
 		data = []
 		for key in self.keys:
@@ -393,6 +500,20 @@ class StackDictTransform:
 		norm_angles=False,
 		axis=0,
 	):
+		""" Initialize StackDictTransform.
+
+		Parameters
+		----------
+		keys : list. Keys to stack from the data dictionary.
+		stack_key : str. Key under which the stacked result is stored.
+		only_fractional_time : bool. If True, only keep fractional year/day components of time.
+		norm_angles : bool. If True, normalize angles to [0, 1] instead of [0, 2*pi].
+		axis : int. Axis along which to concatenate arrays.
+
+		Returns
+		-------
+		None.
+		"""
 		self.keys = self.__rename__(keys)
 		self.axis = axis
 		self.stack_key = stack_key
@@ -402,6 +523,7 @@ class StackDictTransform:
 		self.convert2d = TimeTo2DTransform()
 
 	def __rename__(self, keys):
+		""" Rename angle and time keys to their processed variants. """
 		renamed_keys = []
 		for key in keys:
 			# NOTE: Angles and time are saved as new keys to avoid overwriting original values
@@ -414,6 +536,7 @@ class StackDictTransform:
 		return renamed_keys
 
 	def __call__(self, data_dict):
+		""" Convert angles, reshape time, and stack arrays into a single tensor. """
 		# Convert angles to radians
 		data_dict = self.convert2radians(data_dict)
 		# Convert 1D time arrays to 2D arrays
@@ -452,6 +575,17 @@ class ConvertToRadiansTransform:
 		keys=["coords", "sat_angle", "solar_angle"],
 		norm_angles: bool = False,
 	):
+		""" Initialize ConvertToRadiansTransform.
+
+		Parameters
+		----------
+		keys : list. Keys containing angle arrays to convert.
+		norm_angles : bool. If True, normalize angles to [0, 1] instead of [0, 2*pi].
+
+		Returns
+		-------
+		None.
+		"""
 		self.keys = keys
 		self.norm_angles = norm_angles
 		self.ranges = {
@@ -504,6 +638,7 @@ class ConvertToRadiansTransform:
 		return val_radians
 
 	def __call__(self, data_dict):
+		""" Convert angle arrays in the data dictionary to radians. """
 		# Convert angles to radians
 		for key in self.keys:
 			data = data_dict[key]
@@ -532,11 +667,24 @@ class TimeTo2DTransform:
 	"""
 
 	def __init__(self, keys=["time"], height=256, width=256):
+		""" Initialize TimeTo2DTransform.
+
+		Parameters
+		----------
+		keys : list. Keys containing 1D time arrays to expand.
+		height : int. Target height of the 2D output.
+		width : int. Target width of the 2D output.
+
+		Returns
+		-------
+		None.
+		"""
 		self.keys = keys
 		self.height = height
 		self.width = width
 
 	def __call__(self, data_dict):
+		""" Expand 1D time arrays to 2D spatial arrays of shape (length, H, W). """
 		for key in self.keys:
 			length = len(data_dict[key])
 			data_2d = np.zeros(
@@ -557,9 +705,20 @@ class ToTensorTransform:
 	"""
 
 	def __init__(self, dtype=torch.float32):
+		""" Initialize ToTensorTransform.
+
+		Parameters
+		----------
+		dtype : torch.dtype. Output tensor data type.
+
+		Returns
+		-------
+		None.
+		"""
 		self.dtype = dtype
 
 	def __call__(self, data, **kwargs):
+		""" Convert a numpy array to a PyTorch tensor. """
 		# Convert to tensor
 		tensor = torch.as_tensor(data, dtype=self.dtype)
 		return tensor
@@ -571,11 +730,24 @@ class CropHeightTransform:
 	"""
 
 	def __init__(self, bottom_cutoff: int, top_cutoff: int, key="cloudsat"):
+		""" Initialize CropHeightTransform.
+
+		Parameters
+		----------
+		bottom_cutoff : int. Number of height levels to remove from the bottom.
+		top_cutoff : int. Number of height levels to remove from the top.
+		key : str. Key in the dictionary containing CloudSat data.
+
+		Returns
+		-------
+		None.
+		"""
 		self.bottom_cutoff = bottom_cutoff
 		self.top_cutoff = top_cutoff
 		self.key = key
 
 	def __call__(self, data_dict, **kwargs):
+		""" Crop top and bottom height levels from CloudSat data arrays. """
 		# Crop height levels
 		for var_key in data_dict[self.key]:
 			data_dict[self.key][var_key] = data_dict[self.key][var_key][
@@ -586,6 +758,8 @@ class CropHeightTransform:
 
 
 class RandomCropDictTransform:
+	""" Randomly crop all arrays in a data dictionary to a given patch size. """
+
 	def __init__(
 		self,
 		patch_size: tuple[int, int],
@@ -594,6 +768,20 @@ class RandomCropDictTransform:
 		keys: list[str] = ["data", "coords", "sat_angle", "solar_angle"],
 		max_attempts: int = 10,
 	):
+		""" Initialize RandomCropDictTransform.
+
+		Parameters
+		----------
+		patch_size : tuple of int. Desired output patch size (H, W).
+		center_crop : bool. If True, crop around the center of the image.
+		radius : int. Pixel radius for random center offset (optional).
+		keys : list of str. Keys in the dictionary to apply cropping to.
+		max_attempts : int. Maximum number of attempts to find a valid crop.
+
+		Returns
+		-------
+		None.
+		"""
 		self.patch_size = patch_size
 		self.center_crop = center_crop
 		self.radius = radius
@@ -604,6 +792,7 @@ class RandomCropDictTransform:
 		self,
 		data_dict,
 	):
+		""" Randomly crop all arrays in the data dictionary to patch_size. """
 		# first randomly select cropping pixels
 		# NOTE: this function assumes that all values in data_dict are C x H x W and have the same H x W
 
@@ -675,11 +864,24 @@ class RandomCropTransform:
 		center_crop=False,
 		radius=0,  # Defined in pixels
 	):
+		""" Initialize RandomCropTransform.
+
+		Parameters
+		----------
+		patch_size : tuple. Desired output patch size (H, W).
+		center_crop : bool. If True, crop around the center of the array.
+		radius : int. Pixel radius for random center offset (optional).
+
+		Returns
+		-------
+		None.
+		"""
 		self.patch_size = patch_size
 		self.center_crop = center_crop
 		self.radius = radius
 
 	def __call__(self, arr):
+		""" Randomly crop an array to patch_size. """
 		assert arr.shape[1] >= self.patch_size[0], "Invalid shape to crop"
 		assert arr.shape[2] >= self.patch_size[1], "Invalid shape to crop"
 		if not self.center_crop:
@@ -717,10 +919,18 @@ class CloudSatLinearNormaliseTransform:
 		max: float,
 		key: str = "cloudsat",
 	):
-		"""
-		Args:
-			var (list): The radar product to select
-			key (str): Key in dictionary to apply transformation
+		""" Initialize CloudSatLinearNormaliseTransform.
+
+		Parameters
+		----------
+		var : str. CloudSat variable name to normalize.
+		min : float. Minimum value for clipping and normalization.
+		max : float. Maximum value for clipping and normalization.
+		key : str. Key in the dictionary containing CloudSat data.
+
+		Returns
+		-------
+		None.
 		"""
 		self.var = var
 		self.key = key
@@ -728,6 +938,7 @@ class CloudSatLinearNormaliseTransform:
 		self.max = max
 
 	def __call__(self, data_dict, **kwargs):
+		""" Linearly normalize a CloudSat variable to [-1, 1]. """
 		# Get data
 		data = data_dict[self.key][self.var]
 		# clip extreme values
@@ -740,11 +951,25 @@ class CloudSatLinearNormaliseTransform:
 
 
 class CloudSatLinearUnormaliseTransform:
+	""" Reverses linear normalization applied by CloudSatLinearNormaliseTransform. """
+
 	def __init__(self, min, max):
+		""" Initialize CloudSatLinearUnormaliseTransform.
+
+		Parameters
+		----------
+		min : float. Minimum value of the original normalization range.
+		max : float. Maximum value of the original normalization range.
+
+		Returns
+		-------
+		None.
+		"""
 		self.min = min
 		self.max = max
 
 	def __call__(self, array):
+		""" Reverse linear normalization from [-1, 1] to original range. """
 		# Unnormalize the array
 		unnormalized_array = ((array + 1) / 2) * (self.max - self.min) + self.min
 		return unnormalized_array
@@ -762,10 +987,18 @@ class CloudSatQRLinearNormaliseTransform:
 		max: float,
 		key: str = "cloudsat",
 	):
-		"""
-		Args:
-			var (list): The radar product to select
-			key (str): Key in dictionary to apply transformation
+		""" Initialize CloudSatQRLinearNormaliseTransform.
+
+		Parameters
+		----------
+		var : str. CloudSat variable name to normalize.
+		min : float. Minimum value for clipping and normalization.
+		max : float. Maximum value for clipping and normalization.
+		key : str. Key in the dictionary containing CloudSat data.
+
+		Returns
+		-------
+		None.
 		"""
 		self.var = var
 		self.key = key
@@ -773,6 +1006,7 @@ class CloudSatQRLinearNormaliseTransform:
 		self.max = max
 
 	def __call__(self, data_dict, **kwargs):
+		""" Linearly normalize a CloudSat QR variable to [-1, 1]. """
 		# Get data
 		data = data_dict[self.key][self.var]
 		# clip extreme values
@@ -796,10 +1030,18 @@ class CloudSatLogNormaliseTransform:
 		min=1e-4,
 		max=100,
 	):
-		"""
-		Args:
-			var (list): The radar product to select
-			key (str): Key in dictionary to apply transformation
+		""" Initialize CloudSatLogNormaliseTransform.
+
+		Parameters
+		----------
+		var : str. CloudSat variable name to normalize.
+		key : str. Key in the dictionary containing CloudSat data.
+		min : float. Minimum value for clipping (in original units).
+		max : float. Maximum value for clipping (in original units).
+
+		Returns
+		-------
+		None.
 		"""
 		self.var = var
 		self.key = key
@@ -807,6 +1049,7 @@ class CloudSatLogNormaliseTransform:
 		self.max = max
 
 	def __call__(self, data_dict, **kwargs):
+		""" Log-normalize a CloudSat variable and scale to [-1, 1]. """
 		# Get data
 		data = data_dict[self.key][self.var]
 		# clip extreme values and take log
@@ -823,11 +1066,25 @@ class CloudSatLogNormaliseTransform:
 
 
 class CloudSatLogUnnormaliseTransform:
+	""" Reverses log normalization applied by CloudSatLogNormaliseTransform. """
+
 	def __init__(self, min, max):
+		""" Initialize CloudSatLogUnnormaliseTransform.
+
+		Parameters
+		----------
+		min : float. Minimum value of the original normalization range (in original units).
+		max : float. Maximum value of the original normalization range (in original units).
+
+		Returns
+		-------
+		None.
+		"""
 		self.min = min
 		self.max = max
 
 	def __call__(self, array):
+		""" Reverse log normalization from [-1, 1] to original scale. """
 		# Unnormalize the array
 		unnormalized_array = ((array + 1) / 2) * (
 			np.log10(self.max) - np.log10(self.min)
@@ -861,9 +1118,18 @@ class CloudsatFillMeasurementGapsTransform:
 		max_gap: int = 15,
 		interpolation: str = "linear",
 	):
-		"""
-		Args:
-			key (str): Key in dictionary to apply transformation
+		""" Initialize CloudsatFillMeasurementGapsTransform.
+
+		Parameters
+		----------
+		var : str. CloudSat variable name to apply gap filling to.
+		key : str. Key in the dictionary containing CloudSat data.
+		max_gap : int. Maximum gap size (in rows) to fill.
+		interpolation : str. Interpolation method: "nearest" or "linear".
+
+		Returns
+		-------
+		None.
 		"""
 		self.var = var
 		self.key = key
@@ -956,6 +1222,7 @@ class CloudsatFillMeasurementGapsTransform:
 		return data
 
 	def __call__(self, data_dict, **kwargs):
+		""" Fill measurement gaps in a CloudSat variable. """
 		data = data_dict[self.key][self.var]
 		# replace -999 in data with nan for fill_nan_rows
 		data[data == -999] = np.nan
@@ -980,12 +1247,25 @@ class UpDownSampleTransform:
 		target_reso: float,
 		keys: list[str] = ["data", "coords", "sat_angle", "solar_angle"],
 	):
+		""" Initialize UpDownSampleTransform.
+
+		Parameters
+		----------
+		source_reso : float. Source spatial resolution (e.g. in km).
+		target_reso : float. Target spatial resolution.
+		keys : list of str. Keys in the dictionary to apply resampling to.
+
+		Returns
+		-------
+		None.
+		"""
 		# calculate scale factor from source and target resolution
 		scale_factor = source_reso / target_reso
 		self.zoom = (1.0, scale_factor, scale_factor)  # (C, H, W) for 2D data
 		self.keys = keys
 
 	def __call__(self, data_dict):
+		""" Resample all selected arrays to the target resolution. """
 		for key in self.keys:
 			data_dict[key] = scipy.ndimage.zoom(
 				data_dict[key],
@@ -1007,12 +1287,26 @@ class MinMaxNormaliseTransform:
 	"""
 
 	def __init__(self, bt_min=180, bt_max=350, nr_min=0, nr_max=100):
+		""" Initialize MinMaxNormaliseTransform.
+
+		Parameters
+		----------
+		bt_min : float. Minimum brightness temperature for clipping.
+		bt_max : float. Maximum brightness temperature for clipping.
+		nr_min : float. Minimum TOA reflectance for clipping.
+		nr_max : float. Maximum TOA reflectance for clipping.
+
+		Returns
+		-------
+		None.
+		"""
 		self.bt_min = bt_min
 		self.bt_max = bt_max
 		self.nr_min = nr_min
 		self.nr_max = nr_max
 
 	def __call__(self, data_dict, **kwargs):
+		""" Apply min-max normalization to [-1, 1] for each band. """
 		for i, key in enumerate(data_dict["band_names"]):
 			sensor_type = data_dict["sensor_info"][key]["band_type"]
 			if sensor_type == "TOA Normalised Brightness Temperature":
@@ -1044,6 +1338,17 @@ class SenseiEncodingTransform:
 	"""
 
 	def __init__(self, satellite: str, embed_sizes_dict: dict[int]):
+		""" Initialize SenseiEncodingTransform.
+
+		Parameters
+		----------
+		satellite : str. Satellite name (one of "goes", "himawari", "msg").
+		embed_sizes_dict : dict. Dictionary mapping encoding feature names to embedding dimensions.
+
+		Returns
+		-------
+		None.
+		"""
 		self.embed_sizes_dict = embed_sizes_dict
 		static_encoding_keys = [
 			"min_wavelength",
@@ -1063,6 +1368,7 @@ class SenseiEncodingTransform:
 		self._get_static_encoding()
 
 	def __call__(self, data_dict):
+		""" Compute and attach the SEnSeI encoding to the data dictionary. """
 		if self.dynamic_encoding_sizes:
 			try:
 				data_dict["sensei_encoding"] = self._get_combined_encodings(data_dict)
@@ -1073,6 +1379,7 @@ class SenseiEncodingTransform:
 		return data_dict
 
 	def _get_static_encoding(self):
+		""" Compute and cache the static per-band SEnSeI encoding for the satellite. """
 		match self.satellite.lower():
 			case "goes":
 				sensor_constants = GOES_WAVELENGTHS
@@ -1099,6 +1406,16 @@ class SenseiEncodingTransform:
 		#     self.static_encoding = self.static_encoding.squeeze()
 
 	def _get_dynamic_encoding(self, data_dict):
+		""" Compute dynamic per-sample SEnSeI encodings from coordinates and angles.
+
+		Parameters
+		----------
+		data_dict : dict. Sample dictionary containing "coords", "sat_angle", "solar_angle", and "time".
+
+		Returns
+		-------
+		torch.Tensor. Concatenated dynamic encodings of shape (encode_dim,).
+		"""
 		encodings = []
 		if coord_dim := self.dynamic_encoding_sizes.get("coords", False):
 			encodings.append(
@@ -1179,6 +1496,16 @@ class SenseiEncodingTransform:
 		return torch.cat(encodings, dim=-1)
 
 	def _get_combined_encodings(self, data_dict):
+		""" Combine static and dynamic SEnSeI encodings.
+
+		Parameters
+		----------
+		data_dict : dict. Sample dictionary passed to _get_dynamic_encoding.
+
+		Returns
+		-------
+		torch.Tensor. Per-channel tensor concatenating dynamic and static encodings.
+		"""
 		dynamic_encoding = self._get_dynamic_encoding(data_dict)
 		channels = self.static_encoding.shape[0]
 
