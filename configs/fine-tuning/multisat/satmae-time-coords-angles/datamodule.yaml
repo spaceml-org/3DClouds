@@ -3,9 +3,9 @@ dataloader:
 
   # Path to the data
   data_dir_dict:
-    goes_cloudsat: /mnt/disks/data/2025-esl-3dclouds-extremes-datasets/fine-tuning-reprocessed/cloudsat-goes-paired/
-    himawari_cloudsat: /mnt/disks/data/2025-esl-3dclouds-extremes-datasets/fine-tuning-reprocessed/cloudsat-himawari-paired/
-    msg_cloudsat: /mnt/disks/data/2025-esl-3dclouds-extremes-datasets/fine-tuning-reprocessed/cloudsat-msg-paired/
+    goes_cloudsat: /mnt/e/Data/3DClouds/fine-tuning-reprocessed/cloudsat-goes-paired/
+    himawari_cloudsat: /mnt/e/Data/3DClouds/fine-tuning-reprocessed/cloudsat-himawari-paired/
+    msg_cloudsat: /mnt/e/Data/3DClouds/fine-tuning-reprocessed/cloudsat-msg-paired/
   # splits_dict: NOTE: data splitting is now default handled in the datamodules
 
 
@@ -75,7 +75,7 @@ dataloader:
   num_workers: 8
 
   filter_clear_sky:
-    path: /data/2025-esl-3dclouds-extremes-datasets/fine-tuning-reprocessed/finetune_stats.csv
+    path: /mnt/e/Data/3DClouds/fine-tuning-reprocessed/finetune_stats.csv
     radar_cloud_frac: [">", 0.25]
     bad_quality_columns: ["==", 0]
     bad_pixels: ["==", 0]

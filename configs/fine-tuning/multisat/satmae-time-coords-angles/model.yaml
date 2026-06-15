@@ -3,7 +3,7 @@ model:
   # Load the pretrained model from a hydra run
   backbone:
     _target_: src.models.components.checkpoint.ModelFromHydraRun
-    hydra_run_path: /data/2025-esl-3dclouds-extremes-models/2025-swinmae/mae-clouds-vits4-6xr9vbac
+    hydra_run_path: ../../../../../../../e/Data/3DClouds/models/2025-esl-3dclouds-extremes-models/2025-swinmae/mae-clouds-vits4-6xr9vbac
     # model_expression: backbone NOTE: This is no longer needed, since satmae_finetuning.py now expects the whole model
     freeze: False # Set to True if you want to freeze the backbone
     enable_loading_weights: True # Set to True if you want to load the weights from the checkpoint

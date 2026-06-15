@@ -1,9 +1,3 @@
-r# This script contains the class defining the
-# neural network used in this study. This includes
-# a definition of the initial setup, forward pass,
-# loss and error metrics that are conducted for every
-# step of the training and validation routine.
-
 from __future__ import annotations
 
 import autoroot  # required for import from src

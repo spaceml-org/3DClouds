@@ -4,77 +4,134 @@ channels:
   - nvidia
   - pytorch
 dependencies:
-  - python<3.12
+  - python<3.12 x  ---------- Needs to be 3.11
   # core
   # - numpy<2
-  - scipy
-  - scikit-image
-  - scikit-learn
-  - opencv
-  - pandas
-  - xarray
-  - satpy
-  - dask
+  - scipy x
+  - scikit-image x
+  - scikit-learn x
+  - opencv x
+  - pandas  x
+  - xarray x
+  - satpy x
+  - dask x
   - dask[dataframe]
   # data formats
-  - netcdf4
-  - hdf4
-  - pyhdf
-  - hdf5
-  - h5py
-  - h5netcdf
-  - zarr
+  - netcdf4 x
+  - hdf4 x
+  - pyhdf x
+  - hdf5 x
+  - h5py x
+  - h5netcdf x
+  - zarr x
   # eo downloads
-  - boto3
-  - goes2go
-  - s3fs
-  - earthaccess
-  - eumdac
-  - google-cloud-storage
-  - gcsfs
+  - boto3 x
+  - goes2go x
+  - s3fs x
+  - earthaccess x
+  - eumdac x
+  - google-cloud-storage x
+  - gcsfs x
   # geospatial
-  - geopandas
-  - rasterio
-  - rioxarray
+  - geopandas x
+  - rasterio  x
+  - rioxarray x
   # visualisation
-  - matplotlib
-  - seaborn
-  - geoviews
-  - hvplot
-  - datashader
+  - matplotlib x
+  - seaborn x
+  - geoviews x
+  - hvplot  x
+  - datashader x
   # other
-  - progressbar2
-  - wandb
-  - loguru
-  - python-dotenv
+  - progressbar2 x
+  - wandb x
+  - loguru x
+  - python-dotenv x
   - hydra-core
-  - timm
-  - albumentations
-  - tqdm
-  - gcsfs
+  - timm x
+  - albumentations x
+  - tqdm x
+  - gcsfs x
   - black==23.3.0
-  - typer
+  - typer x
   - einops
-  - pydantic<2 # Needed for lightning version
+  - pydantic<2 # Needed for lightning version x
   # pip
   - pip
   - pip:
-    - autoroot
-    - torch==2.0.1
-    - torchvision==0.15.2
-    - lightning==2.0.1
-    - pytorch_lightning==2.0.6
-    - torchmetrics==1.0.1
+    - autoroot x
+    - torch==2.0.1 x
+    - torchvision==0.15.2 x
+    - lightning==2.0.1 x
+    - pytorch_lightning==2.0.6 x
+    - torchmetrics==1.0.1  x
     - torchmetrics[image]
     - numpy==1.23.0
-    - ipykernel
-    - ipywidgets
-    - jupyterlab
-    - jupyter
-    - jupyter_bokeh
-    - monai
-    - torcheval
+    - ipykernel x
+    - ipywidgets x
+    - jupyterlab x
+    - jupyter x
+    - jupyter_bokeh x
+    - monai x
+    - torcheval x
     # - opencv-python-headless<4.3
     # from github (need to remove src/esl3d for this to work)
     # - "--editable=git+https://github.com/w-k-jones/CloudSatiPy.git@main#egg=cloudsatipy"
     # - "--editable=git+https://github.com/jejjohnson/xrpatcher.git@main#egg=xrpatcher"
+
+ 1753  conda create -n 3DClouds python=3.11
+ 1754  conda activate 3DClouds
+ 1755  pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+ 1756  pip install lightning
+ 1759  conda config --add channels conda-forge
+ 1758  conda config --add channels bioconda
+ 1758  conda config --add channels nvidia
+ 1761  conda install scipy
+ 1762  conda install satpy
+ 1764  conda install opencv
+ 1765  conda install scikit-learn
+ 1766  conda install scikit-image
+ 1768  conda install netcdf4
+ 1769  conda install hdf4
+ 1770  conda install pyhdf
+ 1771  conda install hdf5
+ 1772  conda install h5py
+ 1773  conda install h5netcdf
+ 1774  conda install boto3
+ 1775  conda install goes2go
+ 1776  conda install s3fs
+ 1777  conda install earthaccess
+ 1778  conda install eumdac
+ 1779  conda install google-cloud-storage
+ 1780  conda install gcsfs
+ 1781  conda install geopandas
+ 1782  conda install rasterio
+ 1783  conda install rioxarray
+ 1784  conda install tqdm
+ 1785  conda install wandb
+ 1786  conda install mlflow
+ 1787  conda install albumentations
+ 1789  conda install matplotlib
+ 1790  conda install seaborn
+ 1791  conda install geoviews
+ 1792  conda install hvplot
+ 1793  conda install datashader
+ 1794  conda install progressbar2
+ 1795  conda install loguru
+ 1796  conda install python-dotenv
+ 1797  conda install timm
+ 1798  conda install hydra-core
+ 1799  conda install hydra-colorlog
+ 1800  conda install snakemake -c bioconda
+ 1801  conda install sphinx
+ 1802  conda install sphinx_rtd_theme
+ 1805  conda install black
+ 1807  conda install einops
+ 1814  pip install torcheval
+ 1816  pip install autoroot
+ 1818  pip install jupyterlab
+ 1820  pip install ipywidgets
+ 1822  pip install jupyter
+ 1823  pip install monai
+ 1824  pip install jupyter_bokeh
+ 1826  pip install monai

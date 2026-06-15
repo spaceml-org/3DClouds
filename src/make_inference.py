@@ -56,6 +56,10 @@ from src.transforms.transforms import (
     CloudSatLogUnnormaliseTransform,
 )
 from src.validation_utils import calculate_metrics_per_cloudtype, log_metrics_wandb
+import torch.multiprocessing
+
+# Add this line to fix the WSL open files limit
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 # Clear cache
 torch.cuda.empty_cache()
@@ -118,8 +122,8 @@ print("------------------------------------------\n")
 
 # Load the config file
 print(f"looking for hydra run {wandb_runid}", flush=True)
-hr = utils.find_hydra_run_path(f"{finetuned_dir}", wandb_runid)
-
+# hr = utils.find_hydra_run_path(f"{finetuned_dir}", wandb_runid)
+hr = finetuned_dir
 print("\n\n---------------------- preparing data", flush=True)
 cfgdata = OmegaConf.load(f"{hr}/.hydra/config.yaml")
 

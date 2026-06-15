@@ -113,7 +113,7 @@ def load_ckpt_from_hydra_run(
 
     # look for checkpoint
     ckpts_paths = [
-        f"{hydra_run_path}/*{'/*'*trailings}/*ckpt" for trailings in range(6)
+        f"{hydra_run_path}{'/*'*trailings}/*ckpt" for trailings in range(6)
     ]
     ckpts = functools.reduce(
         lambda lista, elemento: glob(elemento) + lista, ckpts_paths, []
