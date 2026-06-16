@@ -1,60 +1,108 @@
-# ESL-3DClouds
+# Global Reconstructions of 3D Clouds & Climate Extremes
 
-## Installation with pixi
+Use geostationary satellite observations and deep learning to reconstruct 3D microphysical properties of clouds and tropical cyclones.
 
-1. Install pixi from terminal: 
+## Table of Contents
+1. [Installation](#1-installation)
+   1. [Conda environment](#11-conda-environment)
+   2. [Miscellaneous tools (optional)](#12-miscellaneous-tools-optional)
+2. [Usage](#2-usage)
+   1. [Download](#21-download)
+      1. [Datasets](#211-datasets)
+      2. [Trained models](#212-trained-models)
+   2. [Pre-training](#22-pre-training)
+      1. [Training](#221-training)
+      2. [Inference](#222-inference)
+      3. [Evaluation](#223-evaluation)
+   3. [Fine-tuning](#23-fine-tuning)
+      1. [Training](#231-training)
+      2. [Inference](#232-inference)
+      3. [Evaluation](#233-evaluation)
+3. [References](#3-references)
+   1. [Publications](#31-publications)
+   2. [Acknowledgements](#32-acknowledgements)
+
+## 1. Installation
+
+Clone the repository:
 
 ```bash
-curl -fsSL https://pixi.sh/install.sh | sh
+git clone https://github.com/spaceml-org/3DClouds.git
 ```
-Close terminal then check if pixi command is recognized.
+3DClouds is built with [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) and [Hydra](https://hydra.cc/docs/intro/). 
 
-2. create pixi environment.
+### 1.1 Conda environment
 
-  a. copy pixi_env folder from pixi_env branch of this repo to your home directory
-  ```bash
-    sudo cp -r pixi_env /home/myusername/
-  ```
-  b. find PIXI_PATH where pixi is whith  
-  ```bash
-    which pixi
-  ```
-  c. install pixi from /home/myusername/pixi_env/extreme/
-  ```bash
-  sudo PIXI_PATH install
-  ```
-3. activate pixi environment.
-go to /home/myusername/pixi_env/extreme/ (ie where .toml file is) and run
+Create a new conda environment and install pre-requisites by executing the script [`environment.sh`](environment.sh):
 ```bash
-  pixi shell
-  ```
-
-4. set evironment in VS code: 
-  a. install python + jupyter extensions
-  b. ctr+shift+P: Python select interpreter > find python path: /home/myusername/pixi_env/extreme/.pixi/envs/default/bin/python
-
-
-## Installation conda
-
-Install Miniconda from [here](https://docs.conda.io/en/latest/miniconda.html) and then run the following commands to create the fdl-sar-env environment:
-
-```bash
-conda env create -f environment.yml
-
-conda activate esl3d-env
+./environment.sh
+conda activate 3DClouds
 ```
+Note: Allow enough time for Conda to resolve the environment, as it may take a while to find compatible versions of all packages.
 
+### 1.2 Miscellaneous tools (optional)
 
-### Optional, but highly recommended
-
-Install [pre-commit](https://pre-commit.com/) by running the following command to automatically run code formatting and linting before each commit:
+Install [pre-commit](https://pre-commit.com/) to automatically run code formatting and linting before each commit:
 
 ```bash
 pre-commit install
 ```
 
-If using pre-commit, each time you commit, your code will be formatted, linted, checked for imports, merge conflicts, and more. If any of these checks fail, the commit will be aborted.
+Each time you commit, your code will be formatted, linted, checked for imports, merge conflicts, and more. If any of these checks fail, the commit will be aborted.
 
-## Adding a new package
+## 2. Usage
 
-To add a new package to the environment, open the environment.yml file and add it under dependencies. By default packages are installed using conda. If pip needs to be used, add it under `- pip`.
+### 2.1 Download
+
+#### 2.1.1 Datasets
+
+To be completed.
+
+#### 2.1.2 Trained models
+
+To be completed.
+
+### 2.2 Pre-training
+
+#### 2.2.1 Training
+
+To be completed.
+
+#### 2.2.2 Inference
+
+To be completed.
+
+#### 2.2.3 Evaluation
+
+To be completed.
+
+### 2.3 Fine-tuning
+
+#### 2.3.1 Training
+
+To be completed.
+
+#### 2.3.2 Inference
+
+To be completed.
+
+For example, to run the multivariable, multisatellite U-Net model, execute the script:
+```bash
+./scripts/predict_unet-baseline-multivar-multisat-63it0bw9.sh
+```
+
+#### 2.3.3 Evaluation
+
+To be completed.
+
+## 3. References
+
+### 3.1 Publications
+- Girtsou et al. (2024): https://arxiv.org/abs/2501.02035.
+- Ermis et al. (2025): https://www.climatechange.ai/papers/neurips2025/63
+
+### 3.2 Acknowledgements
+This work has been enabled by Frontier Development Lab Earth Systems Lab (https://eslab.ai/)—a
+public / private partnership between the European Space Agency (ESA), Trillium Technologies, the
+University of Oxford and leaders in commercial AI supported by Google Cloud, Scan Computers,
+Nvidia Corporation and Pasteur Labs.
